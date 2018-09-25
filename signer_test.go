@@ -57,6 +57,21 @@ func TestPipelines(t *testing.T) {
 			`{"steps":[{"command":"echo hello"},{"commands":["echo world", "echo foo"]}]}`,
 			`{"steps":[{"command":"echo hello","env":{"STEP_SIGNATURE":"bc6d93682b086f836db67c98551c95079e6cd0b64f59abc590b5e076956759e0"}},{"commands":["echo world","echo foo"],"env":{"STEP_SIGNATURE":"b5a1828030d5bb9577b9d29ace3f0f5a2c1ede4e9d357cc30296565da9636eba"}}]}`,
 		},
+		{
+			"Wait step",
+			`{"steps":["wait"]}`,
+			`{"steps":["wait"]}`,
+		},
+		{
+			"Block step",
+			`{"steps":[{"block":"Does this work?","prompt":"Yes"}]}`,
+			`{"steps":[{"block":"Does this work?","prompt":"Yes"}]}`,
+		},
+		{
+			"Wait with steps",
+			`{"steps":[{"block":"Does this work?","prompt":"Yes"},"wait",{"command":"echo done"}]}`,
+			`{"steps":[{"block":"Does this work?","prompt":"Yes"},"wait",{"command":"echo done","env":{"STEP_SIGNATURE":"7314596562367a9a0fe297ea47d32416d9039b064e14f39aed84170bdc4c6574"}}]}`,
+		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			signer := NewSharedSecretSigner("secret-llamas")
