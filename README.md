@@ -41,3 +41,11 @@ When the tool is verifying a pipeline:
 * Compare result with `STEP_SIGNATURE`
 * Fail if they don't match
 
+## Development
+
+This is using Golang's 1.11 modules.
+
+```
+export GO111MODULE=on
+go run .
+```
