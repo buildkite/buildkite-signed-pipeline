@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -95,7 +94,22 @@ type verifyCommand struct {
 }
 
 func (v *verifyCommand) run(c *kingpin.ParseContext) error {
-	fmt.Printf("verifying\n")
+	command := os.Getenv(`BUILDKITE_COMMAND`)
+	sig := os.Getenv(stepSignatureEnv)
+
+	if command == "" {
+		log.Println("No command set")
+		return nil
+	}
+
+	err := v.Signer.Verify(command, Signature(sig))
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	log.Println("Command signature matched")
+
 	return nil
 }
 

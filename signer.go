@@ -90,7 +90,12 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		}
 	}
 
-	commandSignature, err := s.signCommand(rawCommand)
+	extractedCommand, err := s.extractCommand(rawCommand)
+	if err != nil {
+		return nil, err
+	}
+
+	commandSignature, err := s.signCommand(extractedCommand)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +115,7 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 	return copy, nil
 }
 
-func (s SharedSecretSigner) signCommand(command interface{}) (string, error) {
+func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) {
 	value := reflect.ValueOf(command)
 
 	// expand into simple list of commands
@@ -125,8 +130,28 @@ func (s SharedSecretSigner) signCommand(command interface{}) (string, error) {
 		return "", fmt.Errorf("Unexpected type for command: %T", command)
 	}
 
-	h := hmac.New(sha256.New, []byte(s.secret))
-	h.Write([]byte(strings.TrimSpace(strings.Join(commandStrings, ""))))
+	return strings.Join(commandStrings, ""), nil
+}
 
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
+type Signature string
+
+func (s SharedSecretSigner) signCommand(command string) (Signature, error) {
+	h := hmac.New(sha256.New, []byte(s.secret))
+	h.Write([]byte(strings.TrimSpace(command)))
+	return Signature(fmt.Sprintf("%x", h.Sum(nil))), nil
+}
+
+func (s SharedSecretSigner) Verify(command string, expected Signature) error {
+	commandSignature, err := s.signCommand(command)
+
+	if err != nil {
+		return err
+	}
+
+	if commandSignature != expected {
+		return errors.New("🚨 Signature mismatch." +
+			"Perhaps check the shared secret is the same across agents?")
+	}
+
+	return nil
 }
