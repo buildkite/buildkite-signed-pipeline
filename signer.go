@@ -130,7 +130,7 @@ func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) 
 		return "", fmt.Errorf("Unexpected type for command: %T", command)
 	}
 
-	return strings.Join(commandStrings, ""), nil
+	return strings.Join(commandStrings, "\n"), nil
 }
 
 type Signature string
