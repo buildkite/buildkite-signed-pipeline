@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -86,8 +87,23 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		rawCommand, hasCommands = copy["commands"]
 		if !hasCommands {
 			// no commands to sign
-			return copy, nil
+			rawCommand = ""
 		}
+	}
+
+	// extract the plugin declaration for signing
+	extractedPlugins := ""
+	var err error
+	if plugins, hasPlugins := copy["plugins"]; hasPlugins {
+		extractedPlugins, err = s.extractPlugins(plugins)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// no plugins or commands -- nothing to do
+	if rawCommand == "" && extractedPlugins == "" {
+		return copy, nil
 	}
 
 	extractedCommand, err := s.extractCommand(rawCommand)
@@ -95,7 +111,7 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		return nil, err
 	}
 
-	commandSignature, err := s.signCommand(extractedCommand)
+	signature, err := s.signData(extractedCommand, extractedPlugins)
 	if err != nil {
 		return nil, err
 	}
@@ -109,10 +125,19 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		}
 	}
 
-	env[stepSignatureEnv] = commandSignature
+	env[stepSignatureEnv] = signature
 	copy["env"] = env
 
 	return copy, nil
+}
+
+func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) {
+	// TODO pre-process plugin sources per https://buildkite.com/docs/pipelines/plugins#plugin-sources
+	pluginJSON, err := json.Marshal(plugins)
+	if err != nil {
+		return "", err
+	}
+	return string(pluginJSON), err
 }
 
 func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) {
@@ -135,20 +160,21 @@ func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) 
 
 type Signature string
 
-func (s SharedSecretSigner) signCommand(command string) (Signature, error) {
+func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signature, error) {
 	h := hmac.New(sha256.New, []byte(s.secret))
 	h.Write([]byte(strings.TrimSpace(command)))
+	h.Write([]byte(pluginJSON))
 	return Signature(fmt.Sprintf("%x", h.Sum(nil))), nil
 }
 
-func (s SharedSecretSigner) Verify(command string, expected Signature) error {
-	commandSignature, err := s.signCommand(command)
+func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected Signature) error {
+	signature, err := s.signData(command, pluginJSON)
 
 	if err != nil {
 		return err
 	}
 
-	if commandSignature != expected {
+	if signature != expected {
 		return errors.New("🚨 Signature mismatch." +
 			"Perhaps check the shared secret is the same across agents?")
 	}

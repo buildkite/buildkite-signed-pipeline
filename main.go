@@ -101,20 +101,21 @@ type verifyCommand struct {
 
 func (v *verifyCommand) run(c *kingpin.ParseContext) error {
 	command := os.Getenv(`BUILDKITE_COMMAND`)
+	pluginJSON := os.Getenv(`BUILDKITE_PLUGINS`)
 	sig := os.Getenv(stepSignatureEnv)
 
-	if command == "" {
-		log.Println("No command set")
+	if command == "" && pluginJSON == "" {
+		log.Println("No command or plugins set")
 		return nil
 	}
 
-	err := v.Signer.Verify(command, Signature(sig))
+	err := v.Signer.Verify(command, pluginJSON, Signature(sig))
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	log.Println("Command signature matched")
+	log.Println("Signature matched")
 
 	return nil
 }

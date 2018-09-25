@@ -54,8 +54,13 @@ func TestPipelines(t *testing.T) {
 		},
 		{
 			"Step with no command",
+			`{"steps":[{"label":"I have no commands"}]}`,
+			`{"steps":[{"label":"I have no commands"}]}`,
+		},
+		{
+			"Step plugins, but no commands",
 			`{"steps":[{"label":"I have no commands","plugins":[{"docker#v1.4.0":{"image":"node:7"}}]}]}`,
-			`{"steps":[{"label":"I have no commands","plugins":[{"docker#v1.4.0":{"image":"node:7"}}]}]}`,
+			`{"steps":[{"env":{"STEP_SIGNATURE":"acee5ed57eea7fb6388e3349677f1ec85ce55e131c7ba56b7093218f5be24a6b"},"label":"I have no commands","plugins":[{"docker#v1.4.0":{"image":"node:7"}}]}]}`,
 		},
 		{
 			"Pipeline with multiple steps",
@@ -65,7 +70,7 @@ func TestPipelines(t *testing.T) {
 		{
 			"Empty command",
 			`{"steps":[{"command":""}]}`,
-			`{"steps":[{"command":"","env":{"STEP_SIGNATURE":"95f900c45e3ada0027266909f4038f8374a7b234b396aa47db54f2a76522b7d4"}}]}`,
+			`{"steps":[{"command":""}]}`,
 		},
 		{
 			"Wait step",
@@ -81,6 +86,11 @@ func TestPipelines(t *testing.T) {
 			"Wait with steps",
 			`{"steps":[{"block":"Does this work?","prompt":"Yes"},"wait",{"command":"echo done"}]}`,
 			`{"steps":[{"block":"Does this work?","prompt":"Yes"},"wait",{"command":"echo done","env":{"STEP_SIGNATURE":"7314596562367a9a0fe297ea47d32416d9039b064e14f39aed84170bdc4c6574"}}]}`,
+		},
+		{
+			"Step with plugins",
+			"{\"steps\":[{\"command\":\"echo Hello World\",\"plugins\":[{\"github.com/seek-oss/snyk-buildkite-plugin#v0.0.4\":{\"path\":\"package.json\",\"block\":true}},{\"github.com/seek-oss/aws-sm-buildkite-plugin#v0.0.5\":{\"env\":{\"XX\":\"name\"}}}]}]}",
+			"{\"steps\":[{\"command\":\"echo Hello World\",\"env\":{\"STEP_SIGNATURE\":\"c6b6e6344b52b2ce57bd13ba05e0b63ef48364dda962c300bb210cd5be3898ef\"},\"plugins\":[{\"github.com/seek-oss/snyk-buildkite-plugin#v0.0.4\":{\"path\":\"package.json\",\"block\":true}},{\"github.com/seek-oss/aws-sm-buildkite-plugin#v0.0.5\":{\"env\":{\"XX\":\"name\"}}}]}]}",
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
