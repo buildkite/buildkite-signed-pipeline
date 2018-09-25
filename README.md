@@ -2,7 +2,7 @@
 
 This is a tool that adds some extra security guarantees around Buildkite's jobs. Buildkite [security best practices](https://buildkite.com/docs/agent/v3/securing) suggest using `--no-command-eval` which will only allow local scripts in a checked out repository to be run, preventing arbitrary commands being injected by an intermediary.
 
-The downside of that approach is that it also comes with the recommendation of disabling plugins, or whitelisting specifically what plugins and parameters are allowed. This tool is a collaboration between Seek and Buildkite that attempts to bridge this gap and allow uploaded steps to be signed with a secret shared by all agents, so that plugins can run without any concerns of tampering by third-parties.
+The downside of that approach is that it also comes with the recommendation of disabling plugins, or allow listing specifically what plugins and parameters are allowed. This tool is a collaboration between SEEK and Buildkite that attempts to bridge this gap and allow uploaded steps to be signed with a secret shared by all agents, so that plugins can run without any concerns of tampering by third-parties.
 
 ## Example
 
@@ -11,6 +11,8 @@ The downside of that approach is that it also comes with the recommendation of d
 Upload is a thin wrapper around [`buildkite-agent pipeline upload`](https://buildkite.com/docs/agent/v3/cli-pipeline#uploading-pipelines) that adds the required signatures. It behaves much like the command it wraps.
 
 ```bash
+export SIGNED_PIPELINE_SECRET='my secret'
+
 buildkite-signed-pipeline upload
 ```
 
@@ -19,7 +21,17 @@ buildkite-signed-pipeline upload
 In a global `environment` hook, you can include the following to ensure that all jobs that are handed to an agent contain the correct signatures:
 
 ```bash
-buildkite-signed-pipeline verify
+# Allow the upload command to be unsigned, as it typically comes from the Buildkite UI and not your agents
+if [[ "${BUILDKITE_COMMAND}" == "buildkite-signed-pipeline upload" ]]; then
+  echo "Allowing pipeline upload"
+  exit 0
+fi
+
+export SIGNED_PIPELINE_SECRET='my secret'
+
+if ! buildkite-signed-pipeline verify ; then
+  exit 1
+fi
 ```
 
 This step will fail if the provided signatures aren't in the environment.
