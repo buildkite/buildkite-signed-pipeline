@@ -30,6 +30,7 @@ fi
 export SIGNED_PIPELINE_SECRET='my secret'
 
 if ! buildkite-signed-pipeline verify ; then
+  echo "Step verification failed"
   exit 1
 fi
 ```
