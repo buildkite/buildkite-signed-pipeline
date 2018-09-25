@@ -11,10 +11,16 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
+var (
+	Version string = "0.1.0"
+)
+
 func main() {
 	var sharedSecret string
 
 	app := kingpin.New("buildkite-signed-pipeline", "Signed pipeline uploads for Buildkite")
+	app.Version(Version)
+
 	app.
 		Flag("shared-secret", "A shared secret to use for signing").
 		OverrideDefaultFromEnvar(`SIGNED_PIPELINE_SECRET`).
