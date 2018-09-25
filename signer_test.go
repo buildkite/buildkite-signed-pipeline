@@ -38,6 +38,11 @@ func TestPipelines(t *testing.T) {
 			`{"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`,
 		},
 		{
+			"Pipeline with top level env",
+			`{"env":{"GLOBAL_ENV":"wow"},"steps":[{"command":"echo Hello \"Fred\""}]}`,
+			`{"env":{"GLOBAL_ENV":"wow"},"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`,
+		},
+		{
 			"Command with existing env",
 			`{"steps":[{"command":"echo Hello \"Fred\"", "env":{"EXISTING": "existing-value"}}]}`,
 			`{"steps":[{"command":"echo Hello \"Fred\"","env":{"EXISTING":"existing-value","STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`,
