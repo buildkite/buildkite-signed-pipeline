@@ -58,6 +58,11 @@ func TestPipelines(t *testing.T) {
 			`{"steps":[{"command":"echo hello","env":{"STEP_SIGNATURE":"bc6d93682b086f836db67c98551c95079e6cd0b64f59abc590b5e076956759e0"}},{"commands":["echo world","echo foo"],"env":{"STEP_SIGNATURE":"b5a1828030d5bb9577b9d29ace3f0f5a2c1ede4e9d357cc30296565da9636eba"}}]}`,
 		},
 		{
+			"Empty command",
+			`{"steps":[{"command":""}]}`,
+			`{"steps":[{"command":"","env":{"STEP_SIGNATURE":"95f900c45e3ada0027266909f4038f8374a7b234b396aa47db54f2a76522b7d4"}}]}`,
+		},
+		{
 			"Wait step",
 			`{"steps":["wait"]}`,
 			`{"steps":["wait"]}`,
