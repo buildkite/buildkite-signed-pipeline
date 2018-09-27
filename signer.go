@@ -22,6 +22,8 @@ func NewSharedSecretSigner(secret string) *SharedSecretSigner {
 
 type SharedSecretSigner struct {
 	secret string
+	// Allow the signature function to be overriden in tests
+	signerFunc func(string, string) (Signature, error)
 }
 
 func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
@@ -111,7 +113,13 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		return nil, err
 	}
 
-	signature, err := s.signData(extractedCommand, extractedPlugins)
+	// allow signerFunc to be overwritten in tests
+	signerFunc := s.signerFunc
+	if signerFunc == nil {
+		signerFunc = s.signData
+	}
+
+	signature, err := signerFunc(extractedCommand, extractedPlugins)
 	if err != nil {
 		return nil, err
 	}
