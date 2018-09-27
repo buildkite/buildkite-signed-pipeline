@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,63 @@ func TestSigningCommand(t *testing.T) {
 	assert.Equal(t, `{"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`, string(j))
 }
 
+func TestSigningCommandWithPlugins(t *testing.T) {
+	var pipeline = map[string]interface{}{
+		"steps": []interface{}{
+			map[string]interface{}{
+				"command": "my command",
+				"plugins": map[string]interface{}{
+					"my-plugin": map[string]interface{}{
+						"my-setting": true,
+					},
+					"seek-oss/custom-plugin": map[string]interface{} {
+						"a-setting": true,
+					},
+				},
+			},
+		},
+	}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, "my command", command)
+		assert.Contains(t, plugins, "github.com/buildkite-plugins/my-plugin-buildkite-plugin")
+		assert.Contains(t, plugins, "github.com/seek-oss/custom-plugin-buildkite-plugin")
+		return Signature("llamas"), nil
+	}
+
+	signed, err := signer.Sign(pipeline)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result struct{
+		Steps []struct{
+			Env map[string]string
+		}
+	}
+
+	if err := mapInto(&result, signed); err != nil {
+		t.Fatal(err)
+	}
+
+	sig, ok := result.Steps[0].Env["STEP_SIGNATURE"]
+	if !ok {
+		t.Fatal("No STEP_SIGNATURE env present")
+	}
+
+	assert.Equal(t, "llamas", sig)
+}
+
+func mapInto(dest interface{}, source interface{}) error {
+	jsonBytes, err := json.Marshal(source)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(jsonBytes, dest)
+}
+
 func TestPipelines(t *testing.T) {
 	for _, tc := range []struct {
 		Name         string
@@ -35,37 +93,42 @@ func TestPipelines(t *testing.T) {
 		{
 			"Simple pipeline",
 			`{"steps":[{"command":"echo Hello \"Fred\""}]}`,
-			`{"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`,
+			`{"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"signature(echo Hello \"Fred\",)"}}]}`,
 		},
 		{
 			"Pipeline with top level env",
 			`{"env":{"GLOBAL_ENV":"wow"},"steps":[{"command":"echo Hello \"Fred\""}]}`,
-			`{"env":{"GLOBAL_ENV":"wow"},"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`,
+			`{"env":{"GLOBAL_ENV":"wow"},"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"signature(echo Hello \"Fred\",)"}}]}`,
 		},
 		{
 			"Command with existing env",
 			`{"steps":[{"command":"echo Hello \"Fred\"", "env":{"EXISTING": "existing-value"}}]}`,
-			`{"steps":[{"command":"echo Hello \"Fred\"","env":{"EXISTING":"existing-value","STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`,
+			`{"steps":[{"command":"echo Hello \"Fred\"","env":{"EXISTING":"existing-value","STEP_SIGNATURE":"signature(echo Hello \"Fred\",)"}}]}`,
 		},
 		{
 			"Pipeline with multiple commands",
 			`{"steps":[{"command":["echo Hello World", "echo Foo Bar"]}]}`,
-			`{"steps":[{"command":["echo Hello World","echo Foo Bar"],"env":{"STEP_SIGNATURE":"3a2ce177522b03ff8146aff9b26c0e552728619d496e1e0870532c8d5257a42b"}}]}`,
+			`{"steps":[{"command":["echo Hello World","echo Foo Bar"],"env":{"STEP_SIGNATURE":"signature(echo Hello World\necho Foo Bar,)"}}]}`,
 		},
 		{
 			"Step with no command",
+			`{"steps":[{"label":"I have no commands"}]}`,
+			`{"steps":[{"label":"I have no commands"}]}`,
+		},
+		{
+			"Step plugins, but no commands",
 			`{"steps":[{"label":"I have no commands","plugins":[{"docker#v1.4.0":{"image":"node:7"}}]}]}`,
-			`{"steps":[{"label":"I have no commands","plugins":[{"docker#v1.4.0":{"image":"node:7"}}]}]}`,
+			`{"steps":[{"env":{"STEP_SIGNATURE":"signature(,[{\"github.com/buildkite-plugins/docker-buildkite-plugin#v1.4.0\":{\"image\":\"node:7\"}}])"},"label":"I have no commands","plugins":[{"docker#v1.4.0":{"image":"node:7"}}]}]}`,
 		},
 		{
 			"Pipeline with multiple steps",
 			`{"steps":[{"command":"echo hello"},{"commands":["echo world", "echo foo"]}]}`,
-			`{"steps":[{"command":"echo hello","env":{"STEP_SIGNATURE":"bc6d93682b086f836db67c98551c95079e6cd0b64f59abc590b5e076956759e0"}},{"commands":["echo world","echo foo"],"env":{"STEP_SIGNATURE":"b5a1828030d5bb9577b9d29ace3f0f5a2c1ede4e9d357cc30296565da9636eba"}}]}`,
+			`{"steps":[{"command":"echo hello","env":{"STEP_SIGNATURE":"signature(echo hello,)"}},{"commands":["echo world","echo foo"],"env":{"STEP_SIGNATURE":"signature(echo world\necho foo,)"}}]}`,
 		},
 		{
 			"Empty command",
 			`{"steps":[{"command":""}]}`,
-			`{"steps":[{"command":"","env":{"STEP_SIGNATURE":"95f900c45e3ada0027266909f4038f8374a7b234b396aa47db54f2a76522b7d4"}}]}`,
+			`{"steps":[{"command":""}]}`,
 		},
 		{
 			"Wait step",
@@ -80,11 +143,19 @@ func TestPipelines(t *testing.T) {
 		{
 			"Wait with steps",
 			`{"steps":[{"block":"Does this work?","prompt":"Yes"},"wait",{"command":"echo done"}]}`,
-			`{"steps":[{"block":"Does this work?","prompt":"Yes"},"wait",{"command":"echo done","env":{"STEP_SIGNATURE":"7314596562367a9a0fe297ea47d32416d9039b064e14f39aed84170bdc4c6574"}}]}`,
+			`{"steps":[{"block":"Does this work?","prompt":"Yes"},"wait",{"command":"echo done","env":{"STEP_SIGNATURE":"signature(echo done,)"}}]}`,
+		},
+		{
+			"Step with plugins",
+			`{"steps":[{"command":"echo Hello World","plugins":[{"docker#v0.0.4":{"image":"foo"}}]}]}`,
+			`{"steps":[{"command":"echo Hello World","env":{"STEP_SIGNATURE":"signature(echo Hello World,[{\"github.com/buildkite-plugins/docker-buildkite-plugin#v0.0.4\":{\"image\":\"foo\"}}])"},"plugins":[{"docker#v0.0.4":{"image":"foo"}}]}]}`,
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			signer := NewSharedSecretSigner("secret-llamas")
+			signer.signerFunc = func(command, plugins string) (Signature, error) {
+				return Signature(fmt.Sprintf("signature(%s,%s)", command, plugins)), nil
+			}
 			var pipeline interface{}
 			err := json.Unmarshal([]byte(tc.PipelineJSON), &pipeline)
 			if err != nil {

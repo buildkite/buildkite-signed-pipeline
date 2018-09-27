@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
+	"log"
 	"fmt"
 	"reflect"
 	"strings"
@@ -21,6 +22,8 @@ func NewSharedSecretSigner(secret string) *SharedSecretSigner {
 
 type SharedSecretSigner struct {
 	secret string
+	// Allow the signature function to be overriden in tests
+	signerFunc func(string, string) (Signature, error)
 }
 
 func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
@@ -86,8 +89,25 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		rawCommand, hasCommands = copy["commands"]
 		if !hasCommands {
 			// no commands to sign
-			return copy, nil
+			rawCommand = ""
 		}
+	}
+
+	// extract the plugin declaration for signing
+	extractedPlugins := ""
+	var err error
+	if plugins, hasPlugins := copy["plugins"]; hasPlugins {
+		extractedPlugins, err = s.extractPlugins(plugins)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("Signing canonicalised plugins %s", extractedPlugins)
+	}
+
+	// no plugins or commands -- nothing to do
+	if rawCommand == "" && extractedPlugins == "" {
+		return copy, nil
 	}
 
 	extractedCommand, err := s.extractCommand(rawCommand)
@@ -95,7 +115,13 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		return nil, err
 	}
 
-	commandSignature, err := s.signCommand(extractedCommand)
+	// allow signerFunc to be overwritten in tests
+	signerFunc := s.signerFunc
+	if signerFunc == nil {
+		signerFunc = s.signData
+	}
+
+	signature, err := signerFunc(extractedCommand, extractedPlugins)
 	if err != nil {
 		return nil, err
 	}
@@ -109,10 +135,31 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		}
 	}
 
-	env[stepSignatureEnv] = commandSignature
+	env[stepSignatureEnv] = signature
 	copy["env"] = env
 
 	return copy, nil
+}
+
+func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) {
+	var parsed []Plugin
+
+	switch t := plugins.(type) {
+	case []interface{}:
+		for _, item := range t {
+			for name, settings := range item.(map[string]interface{}) {
+				parsed = append(parsed, Plugin{name, settings.(map[string]interface{})})
+			}
+		}
+	case map[string]interface{}:
+		for name, settings := range t {
+			parsed = append(parsed, Plugin{name, settings.(map[string]interface{})})
+		}
+	default:
+		return "", fmt.Errorf("Unknown plugin type %T", t)
+	}
+
+	return marshalPlugins(parsed)
 }
 
 func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) {
@@ -135,20 +182,21 @@ func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) 
 
 type Signature string
 
-func (s SharedSecretSigner) signCommand(command string) (Signature, error) {
+func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signature, error) {
 	h := hmac.New(sha256.New, []byte(s.secret))
 	h.Write([]byte(strings.TrimSpace(command)))
+	h.Write([]byte(pluginJSON))
 	return Signature(fmt.Sprintf("%x", h.Sum(nil))), nil
 }
 
-func (s SharedSecretSigner) Verify(command string, expected Signature) error {
-	commandSignature, err := s.signCommand(command)
+func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected Signature) error {
+	signature, err := s.signData(command, pluginJSON)
 
 	if err != nil {
 		return err
 	}
 
-	if commandSignature != expected {
+	if signature != expected {
 		return errors.New("🚨 Signature mismatch." +
 			"Perhaps check the shared secret is the same across agents?")
 	}
