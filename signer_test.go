@@ -173,3 +173,36 @@ func TestPipelines(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyCommand(t *testing.T) {
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, "echo Hello World", command)
+		assert.Equal(t, "", plugins)
+		return Signature("llamas"), nil
+	}
+	err := signer.Verify("echo Hello World", "", Signature("llamas"))
+	assert.Equal(t, nil, err)
+}
+
+func TestVerifyCommandAndPlugin(t *testing.T) {
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, "echo Hello World", command)
+		assert.Equal(t, `[{"github.com/buildkite-plugins/docker-buildkite-plugin#v1.1":{"image":"node"}}]`, plugins)
+		return Signature("llamas"), nil
+	}
+	err := signer.Verify("echo Hello World", `[{"docker#v1.1":{"image":"node"}}]`, Signature("llamas"))
+	assert.Equal(t, nil, err)
+}
+
+func TestVerifyPlugin(t *testing.T) {
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, "", command)
+		assert.Equal(t, `[{"github.com/buildkite-plugins/docker-buildkite-plugin#v1.1":{"image":"node"}}]`, plugins)
+		return Signature("llamas"), nil
+	}
+	err := signer.Verify("", `[{"docker#v1.1":{"image":"node"}}]`, Signature("llamas"))
+	assert.Equal(t, nil, err)
+}

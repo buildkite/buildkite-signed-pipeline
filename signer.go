@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"log"
 	"fmt"
@@ -190,8 +191,27 @@ func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signatu
 }
 
 func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected Signature) error {
-	signature, err := s.signData(command, pluginJSON)
+	// default to an empty plugin string per pipeline extraction logic
+	canonicalPlugins := ""
+	if pluginJSON != "" {
+		var plugins interface{}
+		err := json.Unmarshal([]byte(pluginJSON), &plugins)
+		if err != nil {
+			return err
+		}
+		canonicalPlugins, err = s.extractPlugins(plugins)
+		if err != nil {
+			return err
+		}
+	}
 
+	// allow signerFunc to be overwritten in tests
+	signerFunc := s.signerFunc
+	if signerFunc == nil {
+		signerFunc = s.signData
+	}
+
+	signature, err := signerFunc(command, canonicalPlugins)
 	if err != nil {
 		return err
 	}
