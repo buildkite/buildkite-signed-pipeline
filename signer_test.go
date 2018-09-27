@@ -26,6 +26,58 @@ func TestSigningCommand(t *testing.T) {
 	assert.Equal(t, `{"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`, string(j))
 }
 
+func TestSigningCommandWithPlugins(t *testing.T) {
+	var pipeline = map[string]interface{}{
+		"steps": []interface{}{
+			map[string]interface{}{
+				"command": "my command",
+				"plugins": map[string]interface{}{
+					"my-plugin": map[string]interface{}{
+						"my-setting": true,
+					},
+				},
+			},
+		},
+	}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, "my command", command)
+		return Signature("llamas"), nil
+	}
+
+	signed, err := signer.Sign(pipeline)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result struct{
+		Steps []struct{
+			Env map[string]string
+		}
+	}
+
+	if err := mapInto(&result, signed); err != nil {
+		t.Fatal(err)
+	}
+
+	sig, ok := result.Steps[0].Env["STEP_SIGNATURE"]
+	if !ok {
+		t.Fatal("No STEP_SIGNATURE env present")
+	}
+
+	assert.Equal(t, "llamas", sig)
+}
+
+func mapInto(dest interface{}, source interface{}) error {
+	jsonBytes, err := json.Marshal(source)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(jsonBytes, dest)
+}
+
 func TestPipelines(t *testing.T) {
 	for _, tc := range []struct {
 		Name         string

@@ -3,8 +3,8 @@ package main
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
+	"log"
 	"fmt"
 	"reflect"
 	"strings"
@@ -101,6 +101,8 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		log.Printf("Signing canonicalised plugins %s", extractedPlugins)
 	}
 
 	// no plugins or commands -- nothing to do
@@ -140,12 +142,24 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 }
 
 func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) {
-	// TODO pre-process plugin sources per https://buildkite.com/docs/pipelines/plugins#plugin-sources
-	pluginJSON, err := json.Marshal(plugins)
-	if err != nil {
-		return "", err
+	var parsed []Plugin
+
+	switch t := plugins.(type) {
+	case []interface{}:
+		for _, item := range t {
+			for name, settings := range item.(map[string]interface{}) {
+				parsed = append(parsed, Plugin{name, settings.(map[string]interface{})})
+			}
+		}
+	case map[string]interface{}:
+		for name, settings := range t {
+			parsed = append(parsed, Plugin{name, settings.(map[string]interface{})})
+		}
+	default:
+		return "", fmt.Errorf("Unknown plugin type %T", t)
 	}
-	return string(pluginJSON), err
+
+	return marshalPlugins(parsed)
 }
 
 func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) {
