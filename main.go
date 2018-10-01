@@ -77,7 +77,8 @@ func (l *uploadCommand) run(c *kingpin.ParseContext) error {
 		log.Fatal(err)
 	}
 
-	uploadArgs := []string{"pipeline", "upload"}
+	// interpolation is disabled to avoid expanding variables twice
+	uploadArgs := []string{"pipeline", "upload", "--no-interpolation"}
 
 	if l.DryRun {
 		uploadArgs = append(uploadArgs, "--dry-run")
