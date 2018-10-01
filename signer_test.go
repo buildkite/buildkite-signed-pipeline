@@ -24,7 +24,7 @@ func TestSigningCommand(t *testing.T) {
 	}
 
 	j, err := json.Marshal(signed)
-	assert.Equal(t, `{"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`, string(j))
+	assert.Equal(t, `{"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"sha256:a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`, string(j))
 }
 
 func TestSigningCommandWithPlugins(t *testing.T) {

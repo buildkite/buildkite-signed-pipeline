@@ -186,7 +186,7 @@ func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signatu
 	h := hmac.New(sha256.New, []byte(s.secret))
 	h.Write([]byte(strings.TrimSpace(command)))
 	h.Write([]byte(pluginJSON))
-	return Signature(fmt.Sprintf("%x", h.Sum(nil))), nil
+	return Signature(fmt.Sprintf("sha256:%x", h.Sum(nil))), nil
 }
 
 func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected Signature) error {
