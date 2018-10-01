@@ -16,58 +16,41 @@ var (
 )
 
 func main() {
-	var sharedSecret string
-
 	app := kingpin.New("buildkite-signed-pipeline", "Signed pipeline uploads for Buildkite")
 	app.Version(Version)
 
-	app.
+	sharedSecret := app.
 		Flag("shared-secret", "A shared secret to use for signing").
 		OverrideDefaultFromEnvar(`SIGNED_PIPELINE_SECRET`).
 		Required().
-		StringVar(&sharedSecret)
+		String()
 
-	uploadCommand := &uploadCommand{}
-	uploadCommandClause := app.Command("upload", "Upload a pipeline.yml with signatures").Action(uploadCommand.run)
-	uploadCommandClause.
-		Arg("file", "The pipeline.yml to process").
-		FileVar(&uploadCommand.File)
+	uploadCommand := app.Command("upload", "Upload a pipeline.yml with signatures")
+	uploadFile := uploadCommand.Arg("file", "The pipeline.yml to process").File()
+	uploadDryRun := uploadCommand.Flag("dry-run", "Just show the pipeline that will be uploaded").Bool()
 
-	uploadCommandClause.
-		Flag("dry-run", "Just show the pipeline that will be uploaded").
-		BoolVar(&uploadCommand.DryRun)
+	verifyCommand := app.Command("verify", "Verify a job contains a signature")
 
-	verifyCommand := &verifyCommand{}
-	app.Command("verify", "Verify a job contains a signature").Action(verifyCommand.run)
-
-	// This happens after parse, we need to create a signer object for all of our
-	// commands.
-	app.Action(kingpin.Action(func(c *kingpin.ParseContext) error {
-		uploadCommand.Signer = NewSharedSecretSigner(sharedSecret)
-		verifyCommand.Signer = NewSharedSecretSigner(sharedSecret)
-		return nil
-	}))
-
-	kingpin.MustParse(app.Parse(os.Args[1:]))
+	signer := NewSharedSecretSigner(*sharedSecret)
+	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
+	case uploadCommand.FullCommand():
+		upload(signer, *uploadFile, *uploadDryRun)
+	case verifyCommand.FullCommand():
+		verify(signer)
+	}
 }
 
-type uploadCommand struct {
-	Signer *SharedSecretSigner
-	File   *os.File
-	DryRun bool
-}
-
-func (l *uploadCommand) run(c *kingpin.ParseContext) error {
+func upload(signer *SharedSecretSigner, file *os.File, dryRun bool) error {
 	// Exec `buildkite-agent pipeline upload <file> --dry-run`
 	// Sign output
 	// Exec `buildkite-agent pipeline upload with stdin`
 
-	parsed, err := getPipelineFromBuildkiteAgent(l.File)
+	parsed, err := getPipelineFromBuildkiteAgent(file)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	signed, err := l.Signer.Sign(parsed)
+	signed, err := signer.Sign(parsed)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,7 +63,7 @@ func (l *uploadCommand) run(c *kingpin.ParseContext) error {
 	// interpolation is disabled to avoid expanding variables twice
 	uploadArgs := []string{"pipeline", "upload", "--no-interpolation"}
 
-	if l.DryRun {
+	if dryRun {
 		uploadArgs = append(uploadArgs, "--dry-run")
 	}
 
@@ -96,11 +79,7 @@ func (l *uploadCommand) run(c *kingpin.ParseContext) error {
 	return nil
 }
 
-type verifyCommand struct {
-	Signer *SharedSecretSigner
-}
-
-func (v *verifyCommand) run(c *kingpin.ParseContext) error {
+func verify(signer *SharedSecretSigner) error {
 	command := os.Getenv(`BUILDKITE_COMMAND`)
 	pluginJSON := os.Getenv(`BUILDKITE_PLUGINS`)
 	sig := os.Getenv(stepSignatureEnv)
@@ -110,7 +89,7 @@ func (v *verifyCommand) run(c *kingpin.ParseContext) error {
 		return nil
 	}
 
-	err := v.Signer.Verify(command, pluginJSON, Signature(sig))
+	err := signer.Verify(command, pluginJSON, Signature(sig))
 
 	if err != nil {
 		log.Fatalln(err)
