@@ -22,7 +22,11 @@ func main() {
 	sharedSecret := app.
 		Flag("shared-secret", "A shared secret to use for signing").
 		OverrideDefaultFromEnvar(`SIGNED_PIPELINE_SECRET`).
-		Required().
+		String()
+
+	awsSmSecretId := app.
+		Flag("aws-sm-shared-secret-id", "AWS Secrets Manager (AWS SM) secret id (friendly name, or ARN) of a secret to use for signing").
+		OverrideDefaultFromEnvar(`SIGNED_PIPELINE_AWS_SM_SECRET_ID`).
 		String()
 
 	uploadCommand := app.Command("upload", "Upload a pipeline.yml with signatures")
@@ -31,8 +35,12 @@ func main() {
 
 	verifyCommand := app.Command("verify", "Verify a job contains a signature")
 
+	context := kingpin.MustParse(app.Parse(os.Args[1:]))
+	if *sharedSecret == "" && *awsSmSecretId == "" {
+		app.FatalUsage("Either --shared-secret or --aws-sm-shared-secret-id must be specified")
+	}
 	signer := NewSharedSecretSigner(*sharedSecret)
-	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
+	switch context {
 	case uploadCommand.FullCommand():
 		upload(signer, *uploadFile, *uploadDryRun)
 	case verifyCommand.FullCommand():
