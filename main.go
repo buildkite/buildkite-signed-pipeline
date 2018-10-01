@@ -51,6 +51,9 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Printf("Using secret from AWS SM %s", *awsSmSecretId)
+	} else {
+		log.Println("Using shared secret from env/cli")
 	}
 	signer := NewSharedSecretSigner(rawSecret)
 
