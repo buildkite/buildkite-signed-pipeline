@@ -8,6 +8,9 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -36,10 +39,21 @@ func main() {
 	verifyCommand := app.Command("verify", "Verify a job contains a signature")
 
 	context := kingpin.MustParse(app.Parse(os.Args[1:]))
+
 	if *sharedSecret == "" && *awsSmSecretId == "" {
 		app.FatalUsage("Either --shared-secret or --aws-sm-shared-secret-id must be specified")
 	}
-	signer := NewSharedSecretSigner(*sharedSecret)
+
+	rawSecret := *sharedSecret
+	if *awsSmSecretId != "" {
+		var err error
+		rawSecret, err = getAwsSmSecret(*awsSmSecretId)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	signer := NewSharedSecretSigner(rawSecret)
+
 	switch context {
 	case uploadCommand.FullCommand():
 		upload(signer, *uploadFile, *uploadDryRun)
@@ -136,4 +150,16 @@ func getPipelineFromBuildkiteAgent(f *os.File) (interface{}, error) {
 	}
 
 	return parsed, nil
+}
+
+func getAwsSmSecret(secretId string) (string, error) {
+	client := secretsmanager.New(session.New())
+	request := &secretsmanager.GetSecretValueInput {
+		SecretId: aws.String(secretId),
+	}
+	result, err := client.GetSecretValue(request)
+	if err != nil {
+		return "", err
+	}
+	return *result.SecretString, nil
 }
