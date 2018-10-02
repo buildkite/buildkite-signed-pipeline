@@ -17,4 +17,4 @@ dist/buildkite-signed-pipeline-darwin-amd64: $(FILES)
 
 .PHONY: clean
 clean:
-	rm -f  dist/
+	rm -rf dist/
