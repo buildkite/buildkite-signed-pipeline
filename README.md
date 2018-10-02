@@ -37,6 +37,25 @@ fi
 
 This step will fail if the provided signatures aren't in the environment.
 
+## Managing signing secrets
+
+### Simple secret
+
+Per the examples above, the secret for signing and verification can be provided via an environment variable or command line flag.
+
+### AWS SM
+
+This tool also has first-class support for [AWS Secrets Manager (AWS SM)](https://aws.amazon.com/secrets-manager/).
+A secret id or ARN can be provided, the secret value will then be fetched from AWS SM to be used for signing and verification.
+
+```bash
+export SIGNED_PIPELINE_AWS_SM_SECRET_ID='arn:aws:secretsmanager:ap-southeast-2:12345:secret:my-signed-pipeline-secret-42a5qP'
+
+buildkite-signed-pipeline upload
+```
+
+Future versions of the tool will add support for secret versioning.
+
 ## How it works
 
 When the tool receives a pipeline for upload, it follows these steps:
