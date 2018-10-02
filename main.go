@@ -3,11 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -16,16 +20,22 @@ var (
 )
 
 func main() {
-	var sharedSecret string
-
 	app := kingpin.New("buildkite-signed-pipeline", "Signed pipeline uploads for Buildkite")
 	app.Version(Version)
 
+	var (
+		sharedSecret      string
+		awsSharedSecretId string
+	)
 	app.
 		Flag("shared-secret", "A shared secret to use for signing").
 		OverrideDefaultFromEnvar(`SIGNED_PIPELINE_SECRET`).
-		Required().
 		StringVar(&sharedSecret)
+
+	app.
+		Flag("aws-sm-shared-secret-id", "A shared secret to use for signing").
+		OverrideDefaultFromEnvar(`SIGNED_PIPELINE_AWS_SM_SECRET_ID`).
+		StringVar(&awsSharedSecretId)
 
 	uploadCommand := &uploadCommand{}
 	uploadCommandClause := app.Command("upload", "Upload a pipeline.yml with signatures").Action(uploadCommand.run)
@@ -40,13 +50,31 @@ func main() {
 	verifyCommand := &verifyCommand{}
 	app.Command("verify", "Verify a job contains a signature").Action(verifyCommand.run)
 
+	app.PreAction(func(c *kingpin.ParseContext) error {
+		if sharedSecret == "" && awsSharedSecretId == "" {
+			return errors.New("One of --shared-secret or --aws-sm-shared-secret-id must be provided")
+		}
+		return nil
+	})
+
 	// This happens after parse, we need to create a signer object for all of our
 	// commands.
-	app.Action(kingpin.Action(func(c *kingpin.ParseContext) error {
-		uploadCommand.Signer = NewSharedSecretSigner(sharedSecret)
-		verifyCommand.Signer = NewSharedSecretSigner(sharedSecret)
+	app.Action(func(c *kingpin.ParseContext) error {
+		signingSecret := sharedSecret
+
+		if awsSharedSecretId != "" {
+			log.Printf("Using secret from AWS SM %s", awsSharedSecretId)
+			var err error
+			signingSecret, err = getAwsSmSecret(awsSharedSecretId)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		uploadCommand.Signer = NewSharedSecretSigner(signingSecret)
+		verifyCommand.Signer = NewSharedSecretSigner(signingSecret)
 		return nil
-	}))
+	})
 
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 }
@@ -149,4 +177,16 @@ func getPipelineFromBuildkiteAgent(f *os.File) (interface{}, error) {
 	}
 
 	return parsed, nil
+}
+
+func getAwsSmSecret(secretId string) (string, error) {
+	client := secretsmanager.New(session.New())
+	request := &secretsmanager.GetSecretValueInput {
+		SecretId: aws.String(secretId),
+	}
+	result, err := client.GetSecretValue(request)
+	if err != nil {
+		return "", err
+	}
+	return *result.SecretString, nil
 }
