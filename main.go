@@ -50,7 +50,7 @@ func main() {
 	verifyCommand := &verifyCommand{}
 	app.Command("verify", "Verify a job contains a signature").Action(verifyCommand.run)
 
-	app.PreAction(func(c *kingpin.ParseContext) error {
+	app.Action(func(c *kingpin.ParseContext) error {
 		if sharedSecret == "" && awsSharedSecretId == "" {
 			return errors.New("One of --shared-secret or --aws-sm-shared-secret-id must be provided")
 		}
