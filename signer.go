@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"path/filepath"
+	"os"
 )
 
 const (
@@ -189,6 +191,15 @@ func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signatu
 	return Signature(fmt.Sprintf("sha256:%x", h.Sum(nil))), nil
 }
 
+func allowCommand(command string) (bool, error) {
+	fileName := strings.Replace(command, "\n", "", -1)
+	isLocalFile, err := isWorkingDirectoryFile(fileName) 
+	if err != nil {
+		return false, err
+	}
+	return isLocalFile, nil
+}
+
 func (s SharedSecretSigner) Verify(command string, pluginJSON string, allowedUnsignedCommands []string, expected Signature) error {
 	// Allow any command on the unsigned list to be verified provided it has no signature and plugins.
 	// Checking there's no signature is important to ensure plugins aren't being injected with a
@@ -200,6 +211,15 @@ func (s SharedSecretSigner) Verify(command string, pluginJSON string, allowedUns
 			return nil
 		}
 		log.Println("❗️Forcing signature check as pstep has an expected signature or referenced plugins")
+	}
+
+	forceAllow, err := allowCommand(command)
+	if err != nil {
+		return err
+	}
+	if forceAllow {
+		log.Println("Allowing command without signature")
+		return nil
 	}
 
 	// allow signerFunc to be overwritten in tests
@@ -229,4 +249,18 @@ func contains(hayStack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func isWorkingDirectoryFile(fileName string) (bool, error) {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return false, err
+	}
+	pathToFile, err := filepath.Abs(filepath.Join(workingDirectory, fileName))
+	return err == nil && fileExists(pathToFile), nil
+}
+
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
 }
