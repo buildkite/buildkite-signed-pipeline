@@ -15,14 +15,16 @@ For reference, this tool considers at least the following attack scenarios:
   - [**Make sure your agents check `BUILDKITE_REPO` to ensure only known repositories are cloned**](https://buildkite.com/docs/agent/v3/securing#whitelisting)
  3. The command (`BUILDKITE_COMMAND`) for a job is changed by a man-in-the-middle between Buildkite.com and your agents
   - ✅ The job signature validation will fail as it will not match the command from the uploaded pipeline
- 4. A plugin parameter is changed (e.g. `docker` `image`) to a poisoned Docker image
+ 4. A plugin parameter is changed (e.g. `docker` `image`) by a man-in-the-middle to a poisoned Docker image
   - ✅ The job signature validation will fail as it will not match the plugin from the uploaded pipeline
- 5. A malicious plugin is added to a known "allow listed command"
+ 5. A malicious plugin is added to a known "allow listed command" by a man-in-the-middle
   - ✅ This tool requires that jobs with plugins are signed, regardless of the allowed command
  6. A malicious user gains access to your build agents
   - ❌ This tool will not help in this scenario
  7. The signing secret is leaked/stolen
   - ❌ With the right signing secret, any `command`/`plugins` combination can be signed (and thus trusted by your agents)
+ 8. A malicious user gains access to your allow-listed git repositories (e.g. on GitHub)
+  - ❌ This tool will not help in this scenario
 
 ## Example
 
