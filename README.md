@@ -4,28 +4,6 @@ This is a tool that adds some extra security guarantees around Buildkite's jobs.
 
 The downside of that approach is that it also comes with the recommendation of disabling plugins, or allow listing specifically what plugins and parameters are allowed. This tool is a collaboration between SEEK and Buildkite that attempts to bridge this gap and allow uploaded steps to be signed with a secret shared by all agents, so that plugins can run without any concerns of tampering by third-parties.
 
-## Attack scenarios
-
-For reference, this tool considers at least the following attack scenarios:
-
- 1. A malicious user gains access to the Buildkite UI (buildkite.com), and updates pipeline settings (adds/modifies a command or plugin)
-  - ✅ Commands cannot be signed without knowing the signing secret
- 2. Buildkite is compromised and arbitrary jobs (commands) are sent to all known agents
-  - ✅ Only pipelines from your repositories will be signed
-  - [**Make sure your agents check `BUILDKITE_REPO` to ensure only known repositories are cloned**](https://buildkite.com/docs/agent/v3/securing#whitelisting)
- 3. The command (`BUILDKITE_COMMAND`) for a job is changed by a man-in-the-middle between Buildkite.com and your agents
-  - ✅ The job signature validation will fail as it will not match the command from the uploaded pipeline
- 4. A plugin parameter is changed (e.g. `docker` `image`) by a man-in-the-middle to a poisoned Docker image
-  - ✅ The job signature validation will fail as it will not match the plugin from the uploaded pipeline
- 5. A malicious plugin is added to a known "allow listed command" by a man-in-the-middle
-  - ✅ This tool requires that jobs with plugins are signed, regardless of the allowed command
- 6. A malicious user gains access to your build agents
-  - ❌ This tool will not help in this scenario
- 7. The signing secret is leaked/stolen
-  - ❌ With the right signing secret, any `command`/`plugins` combination can be signed (and thus trusted by your agents)
- 8. A malicious user gains access to your allow-listed git repositories (e.g. on GitHub)
-  - ❌ This tool will not help in this scenario
-
 ## Example
 
 ### Uploading a pipeline with signatures
@@ -94,6 +72,28 @@ When the tool is verifying a pipeline:
 * Calculates `HMAC(SHA256, BUILDKITE_COMMAND + canonicalised(BUILDKITE_PLUGINS), shared-secret)`
 * Compare result with `STEP_SIGNATURE`
 * Fail if they don't match
+
+## Attack scenarios
+
+For reference, this tool considers at least the following attack scenarios:
+
+ 1. A malicious user gains access to the Buildkite UI (buildkite.com), and updates pipeline settings (adds/modifies a command or plugin)
+  - ✅ Commands cannot be signed without knowing the signing secret
+ 2. Buildkite is compromised and arbitrary jobs (commands) are sent to all known agents
+  - ✅ Only pipelines from your repositories will be signed
+  - [**Make sure your agents check `BUILDKITE_REPO` to ensure only known repositories are cloned**](https://buildkite.com/docs/agent/v3/securing#whitelisting)
+ 3. The command (`BUILDKITE_COMMAND`) for a job is changed by a man-in-the-middle between Buildkite.com and your agents
+  - ✅ The job signature validation will fail as it will not match the command from the uploaded pipeline
+ 4. A plugin parameter is changed (e.g. `docker` `image`) by a man-in-the-middle to a poisoned Docker image
+  - ✅ The job signature validation will fail as it will not match the plugin from the uploaded pipeline
+ 5. A malicious plugin is added to a known "allow listed command" by a man-in-the-middle
+  - ✅ This tool requires that jobs with plugins are signed, regardless of the allowed command
+ 6. A malicious user gains access to your build agents
+  - ❌ This tool will not help in this scenario
+ 7. The signing secret is leaked/stolen
+  - ❌ With the right signing secret, any `command`/`plugins` combination can be signed (and thus trusted by your agents)
+ 8. A malicious user gains access to your allow-listed git repositories (e.g. on GitHub)
+  - ❌ This tool will not help in this scenario
 
 ## Development
 
