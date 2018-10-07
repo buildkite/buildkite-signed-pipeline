@@ -9,9 +9,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/external"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -180,11 +180,17 @@ func getPipelineFromBuildkiteAgent(f *os.File) (interface{}, error) {
 }
 
 func getAwsSmSecret(secretId string) (string, error) {
-	client := secretsmanager.New(session.New())
-	request := &secretsmanager.GetSecretValueInput {
-		SecretId: aws.String(secretId),
+	cfg, err := external.LoadDefaultAWSConfig()
+	if err != nil {
+		return "", err
 	}
-	result, err := client.GetSecretValue(request)
+
+	client := secretsmanager.New(cfg)
+	req := client.GetSecretValueRequest(&secretsmanager.GetSecretValueInput {
+		SecretId: aws.String(secretId),
+	})
+
+	result, err := req.Send()
 	if err != nil {
 		return "", err
 	}
