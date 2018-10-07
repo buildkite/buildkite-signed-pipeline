@@ -84,7 +84,7 @@ For reference, this tool considers at least the following attack scenarios:
 #### Buildkite is compromised and arbitrary jobs (commands) are sent to all known agents
 
   - Only pipelines from your repositories will be signed ✅
-  - [**Make sure your agents check `BUILDKITE_REPO` to ensure only known repositories are cloned**](https://buildkite.com/docs/agent/v3/securing#whitelisting) ⚠️s
+  - [**Make sure your agents check `BUILDKITE_REPO` to ensure only known repositories are cloned**](https://buildkite.com/docs/agent/v3/securing#whitelisting) ⚠️
 
 #### The command (`BUILDKITE_COMMAND`) for a job is changed by a man-in-the-middle between Buildkite.com and your agents
 
