@@ -48,9 +48,13 @@ func main() {
 		BoolVar(&uploadCommand.DryRun)
 
 	verifyCommand := &verifyCommand{}
-	app.Command("verify", "Verify a job contains a signature").Action(verifyCommand.run)
+	verifyCommandClause := app.Command("verify", "Verify a job contains a signature").Action(verifyCommand.run)
+	verifyCommandClause.
+		Flag("allowed-unsigned-command", "A list of commands that will be allowed without requiring a signature").
+		Default("buildkite-signed-pipeline upload").
+		StringsVar(&verifyCommand.AllowedUnsignedCommands)
 
-	app.PreAction(func(c *kingpin.ParseContext) error {
+	app.Action(func(c *kingpin.ParseContext) error {
 		if sharedSecret == "" && awsSharedSecretId == "" {
 			return errors.New("One of --shared-secret or --aws-sm-shared-secret-id must be provided")
 		}
@@ -125,7 +129,8 @@ func (l *uploadCommand) run(c *kingpin.ParseContext) error {
 }
 
 type verifyCommand struct {
-	Signer *SharedSecretSigner
+	Signer                  *SharedSecretSigner
+	AllowedUnsignedCommands []string
 }
 
 func (v *verifyCommand) run(c *kingpin.ParseContext) error {
@@ -138,7 +143,7 @@ func (v *verifyCommand) run(c *kingpin.ParseContext) error {
 		return nil
 	}
 
-	err := v.Signer.Verify(command, pluginJSON, Signature(sig))
+	err := v.Signer.Verify(command, pluginJSON, v.AllowedUnsignedCommands, Signature(sig))
 
 	if err != nil {
 		log.Fatalln(err)

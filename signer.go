@@ -192,17 +192,44 @@ func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signatu
 	return Signature(fmt.Sprintf("sha256:%x", h.Sum(nil))), nil
 }
 
-func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected Signature) error {
-	signature, err := s.signData(command, pluginJSON)
+func (s SharedSecretSigner) Verify(command string, pluginJSON string, allowedUnsignedCommands []string, expected Signature) error {
+	// Allow any command on the unsigned list to be verified provided it has no signature and plugins.
+	// Checking there's no signature is important to ensure plugins aren't being injected with a
+	// command on the built-in allow list
+	if contains(allowedUnsignedCommands, command) {
+		log.Println("Command is on the allowed list of unsigned commands")
+		if expected == "" && pluginJSON == "" {
+			log.Println("✅ Allowing allow-listed command as no signature is specified, and no plugins are referenced")
+			return nil
+		}
+		log.Println("❗️Forcing signature check as pstep has an expected signature or referenced plugins")
+	}
+
+	// allow signerFunc to be overwritten in tests
+	signerFunc := s.signerFunc
+	if signerFunc == nil {
+		signerFunc = s.signData
+	}
+
+	signature, err := signerFunc(command, pluginJSON)
 
 	if err != nil {
 		return err
 	}
 
 	if signature != expected {
-		return errors.New("🚨 Signature mismatch." +
+		return errors.New("🚨 Signature mismatch. " +
 			"Perhaps check the shared secret is the same across agents?")
 	}
 
 	return nil
+}
+
+func contains(hayStack []string, needle string) bool {
+	for _, item := range hayStack {
+		if item == needle {
+			return true
+		}
+	}
+	return false
 }
