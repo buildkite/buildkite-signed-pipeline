@@ -4,14 +4,16 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
-	"log"
 	"fmt"
+	"log"
+	"os"
 	"reflect"
 	"strings"
 )
 
 const (
-	stepSignatureEnv = `STEP_SIGNATURE`
+	stepSignatureEnv  = `STEP_SIGNATURE`
+	buildkiteJobIDEnv = `BUILDKITE_JOB_ID`
 )
 
 func NewSharedSecretSigner(secret string) *SharedSecretSigner {
@@ -185,6 +187,7 @@ type Signature string
 func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signature, error) {
 	h := hmac.New(sha256.New, []byte(s.secret))
 	h.Write([]byte(strings.TrimSpace(command)))
+	h.Write([]byte(os.Getenv(buildkiteJobIDEnv)))
 	h.Write([]byte(pluginJSON))
 	return Signature(fmt.Sprintf("sha256:%x", h.Sum(nil))), nil
 }
