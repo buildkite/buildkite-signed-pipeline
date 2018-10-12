@@ -6,18 +6,16 @@ import (
 	"os"
 )
 
-var (
-	RawUploadCommand string = "buildkite-signed-pipeline upload"
-)
+const rawUploadCommand string = "buildkite-signed-pipeline upload"
 
 type UnsignedCommandValidator struct {}
 
 func (u UnsignedCommandValidator) Allowed(command string) (bool, error) {
-	if command == RawUploadCommand {
+	if command == rawUploadCommand {
 		return true, nil
 	}
 
-	uploadPrefix := RawUploadCommand + " "
+	uploadPrefix := rawUploadCommand + " "
 	// If there's no additional arguments, bail early
 	if !strings.HasPrefix(command, uploadPrefix) {
 		return false, nil
