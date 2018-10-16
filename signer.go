@@ -26,6 +26,8 @@ type SharedSecretSigner struct {
 	secret string
 	// Allow the signature function to be overriden in tests
 	signerFunc func(string, string) (Signature, error)
+	// Allow the unsigned command validation to be overriden in tests
+	unsignedCommandValidatorFunc func(string) (bool, error)
 }
 
 func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
@@ -192,11 +194,18 @@ func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signatu
 	return Signature(fmt.Sprintf("sha256:%x", h.Sum(nil))), nil
 }
 
-func (s SharedSecretSigner) Verify(command string, pluginJSON string, unsignedCommandValidator UnsignedCommandValidator, expected Signature) error {
+func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected Signature) error {
 	// step with just a command (no plugins) isn't signed
 	if expected == "" && pluginJSON == "" && command != "" {
 		log.Printf("⚠️ Command is unsigned, checking if it's allow-listed")
-		isAllowed, err := unsignedCommandValidator.Allowed(command)
+
+		// allow a custom validator func to be provided in tests
+		validatorFunc := s.unsignedCommandValidatorFunc
+		if validatorFunc == nil {
+			validatorFunc = IsUnsignedCommandOk
+		}
+
+		isAllowed, err := validatorFunc(command)
 		if err != nil {
 			return err
 		}

@@ -1,12 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"testing"
+	"os"
+	"path/filepath"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUnsignedCommandValidation(t *testing.T) {
+	thisTool := filepath.Base(os.Args[0])
+
 	for _, tc := range []struct {
 		Name         string
 		Command      string
@@ -19,23 +24,22 @@ func TestUnsignedCommandValidation(t *testing.T) {
 		},
 		{
 			"Simple signed upload",
-			"buildkite-signed-pipeline upload",
+			fmt.Sprintf("%s upload", thisTool),
 			true,
 		},
 		{
 			"Upload with existing file argument",
-			"buildkite-signed-pipeline upload go.mod",
+			fmt.Sprintf("%s upload go.mod", thisTool),
 			true,
 		},
 		{
 			"Upload with not found file argument",
-			"buildkite-signed-pipeline upload missing-file.yaml",
+			fmt.Sprintf("%s upload missing-file.yaml", thisTool),
 			false,
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
-			validator := UnsignedCommandValidator{}
-			isAllowed, err := validator.Allowed(tc.Command)
+			isAllowed, err := IsUnsignedCommandOk(tc.Command)
 			if err != nil {
 				t.Fatal(err)
 			}

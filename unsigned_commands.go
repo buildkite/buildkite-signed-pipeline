@@ -3,14 +3,13 @@ package main
 import (
 	"strings"
 	"path/filepath"
+	"fmt"
 	"os"
 )
 
-const rawUploadCommand string = "buildkite-signed-pipeline upload"
+func IsUnsignedCommandOk(command string) (bool, error) {
+	rawUploadCommand := fmt.Sprintf("%s upload", filepath.Base(os.Args[0]))
 
-type UnsignedCommandValidator struct {}
-
-func (u UnsignedCommandValidator) Allowed(command string) (bool, error) {
 	if command == rawUploadCommand {
 		return true, nil
 	}
