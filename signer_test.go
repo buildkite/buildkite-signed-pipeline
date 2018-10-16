@@ -173,3 +173,119 @@ func TestPipelines(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyCommand(t *testing.T) {
+	const expectedPluginJSON = ""
+	const expectedCommand = `echo hello world`
+	const expectedSignature = Signature("llamas")
+	defaultValidator := UnsignedCommandValidator{}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, expectedCommand, command)
+		assert.Equal(t, expectedPluginJSON, plugins)
+		return expectedSignature, nil
+	}
+
+	err := signer.Verify(expectedCommand, expectedPluginJSON, defaultValidator, expectedSignature)
+	assert.Nil(t, err)
+}
+
+func TestVerifyCommandAndPlugins(t *testing.T) {
+	const expectedPluginJSON = `[{"github.com/buildkite-plugins/docker-buildkite-plugin#v123":{"image":"node8"}}]`
+	const expectedCommand = `echo hello world`
+	const expectedSignature = Signature("llamas")
+	defaultValidator := UnsignedCommandValidator{}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, expectedCommand, command)
+		assert.Equal(t, expectedPluginJSON, plugins)
+		return expectedSignature, nil
+	}
+
+	err := signer.Verify(expectedCommand, expectedPluginJSON, defaultValidator, expectedSignature)
+	assert.Nil(t, err)
+}
+
+func TestVerifyCommandAndPluginsRejectsSignature(t *testing.T) {
+	const expectedPluginJSON = `[{"github.com/buildkite-plugins/docker-buildkite-plugin#v123":{"image":"node8"}}]`
+	const expectedCommand = `echo hello world`
+	defaultValidator := UnsignedCommandValidator{}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, expectedCommand, command)
+		assert.Equal(t, expectedPluginJSON, plugins)
+		return Signature("llamas"), nil
+	}
+
+	err := signer.Verify(expectedCommand, expectedPluginJSON, defaultValidator, "oh no")
+	assert.NotNil(t, err)
+}
+
+func TestVerifyPluginsAndNoCommand(t *testing.T) {
+	const expectedPluginJSON = `[{"github.com/buildkite-plugins/docker-buildkite-plugin#v123":{"image":"node8"}}]`
+	const expectedCommand = ""
+	const expectedSignature = Signature("llamas")
+	defaultValidator := UnsignedCommandValidator{}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, expectedCommand, command)
+		assert.Equal(t, expectedPluginJSON, plugins)
+		return expectedSignature, nil
+	}
+
+	err := signer.Verify(expectedCommand, expectedPluginJSON, defaultValidator, expectedSignature)
+	assert.Nil(t, err)
+}
+
+func TestVerifyPluginAndAllowedUnsignedCommand(t *testing.T) {
+	const expectedPluginJSON = `[{"github.com/buildkite-plugins/docker-buildkite-plugin#v123":{"image":"node8"}}]`
+	const expectedCommand = "buildkite-signed-pipeline upload"
+	const expectedSignature = Signature("llamas")
+	defaultValidator := UnsignedCommandValidator{}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, expectedCommand, command)
+		assert.Equal(t, expectedPluginJSON, plugins)
+		return expectedSignature, nil
+	}
+
+	err := signer.Verify(expectedCommand, expectedPluginJSON, defaultValidator, expectedSignature)
+	assert.Nil(t, err)
+}
+
+func TestVerifyPluginAndAllowedUnsignedCommandRejectsSignature(t *testing.T) {
+	const expectedPluginJSON = `[{"github.com/buildkite-plugins/docker-buildkite-plugin#v123":{"image":"node8"}}]`
+	const expectedCommand = "buildkite-signed-pipeline upload"
+	defaultValidator := UnsignedCommandValidator{}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, expectedCommand, command)
+		assert.Equal(t, expectedPluginJSON, plugins)
+		return Signature("llamas"), nil
+	}
+
+	err := signer.Verify(expectedCommand, expectedPluginJSON, defaultValidator, "oh no")
+	assert.NotNil(t, err)
+}
+
+func TestVerifyAllowedUnsignedCommand(t *testing.T) {
+	const expectedPluginJSON = ""
+	const expectedCommand = "buildkite-signed-pipeline upload"
+	defaultValidator := UnsignedCommandValidator{}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, expectedCommand, command)
+		assert.Equal(t, expectedPluginJSON, plugins)
+		return Signature("llamas"), nil
+	}
+
+	err := signer.Verify(expectedCommand, expectedPluginJSON, defaultValidator, "")
+	assert.Nil(t, err)
+}

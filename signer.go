@@ -192,8 +192,27 @@ func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signatu
 	return Signature(fmt.Sprintf("sha256:%x", h.Sum(nil))), nil
 }
 
-func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected Signature) error {
-	signature, err := s.signData(command, pluginJSON)
+func (s SharedSecretSigner) Verify(command string, pluginJSON string, unsignedCommandValidator UnsignedCommandValidator, expected Signature) error {
+	// step with just a command (no plugins) isn't signed
+	if expected == "" && pluginJSON == "" && command != "" {
+		log.Printf("⚠️ Command is unsigned, checking if it's allow-listed")
+		isAllowed, err := unsignedCommandValidator.Allowed(command)
+		if err != nil {
+			return err
+		}
+		if isAllowed {
+			log.Printf("Allowing unsigned command")
+			return nil
+		}
+		return errors.New("🚨 Command is unsigned, and it's not in the list of allowed unsigned commands")
+	}
+
+	// allow signerFunc to be overwritten in tests
+	signerFunc := s.signerFunc
+	if signerFunc == nil {
+		signerFunc = s.signData
+	}
+	signature, err := signerFunc(command, pluginJSON)
 
 	if err != nil {
 		return err

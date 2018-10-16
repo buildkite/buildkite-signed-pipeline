@@ -138,7 +138,8 @@ func (v *verifyCommand) run(c *kingpin.ParseContext) error {
 		return nil
 	}
 
-	err := v.Signer.Verify(command, pluginJSON, Signature(sig))
+	unsignedCommandValidator := UnsignedCommandValidator{}
+	err := v.Signer.Verify(command, pluginJSON, unsignedCommandValidator, Signature(sig))
 
 	if err != nil {
 		log.Fatalln(err)
