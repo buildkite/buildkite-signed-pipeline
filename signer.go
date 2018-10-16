@@ -219,7 +219,7 @@ func (s SharedSecretSigner) Verify(command string, pluginJSON string, unsignedCo
 	}
 
 	if signature != expected {
-		return errors.New("🚨 Signature mismatch." +
+		return errors.New("🚨 Signature mismatch. " +
 			"Perhaps check the shared secret is the same across agents?")
 	}
 
