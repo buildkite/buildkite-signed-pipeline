@@ -204,7 +204,7 @@ func (s SharedSecretSigner) Verify(command string, pluginJSON string, unsignedCo
 			log.Printf("Allowing unsigned command")
 			return nil
 		}
-		return errors.New("🚨 Command is unsigned, and it's not in the list of allowed unsigned commands")
+		return errors.New("🚨 Signature missing. The provided command is not permitted to be unsigned.")
 	}
 
 	// allow signerFunc to be overwritten in tests
