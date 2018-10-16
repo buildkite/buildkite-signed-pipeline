@@ -21,12 +21,6 @@ buildkite-signed-pipeline upload
 In a global `environment` hook, you can include the following to ensure that all jobs that are handed to an agent contain the correct signatures:
 
 ```bash
-# Allow the upload command to be unsigned, as it typically comes from the Buildkite UI and not your agents
-if [[ "${BUILDKITE_COMMAND}" == "buildkite-signed-pipeline upload" ]]; then
-  echo "Allowing pipeline upload"
-  exit 0
-fi
-
 export SIGNED_PIPELINE_SECRET='my secret'
 
 if ! buildkite-signed-pipeline verify ; then
@@ -35,7 +29,8 @@ if ! buildkite-signed-pipeline verify ; then
 fi
 ```
 
-This step will fail if the provided signatures aren't in the environment.
+This step will fail if the provided signatures aren't in the environment. The tool allows `buildkite-signed-pipeline upload` to be executed without a signature,
+this allows the initial upload step to be entered into the Buildkite UI.
 
 ## Managing signing secrets
 

@@ -26,6 +26,8 @@ type SharedSecretSigner struct {
 	secret string
 	// Allow the signature function to be overriden in tests
 	signerFunc func(string, string) (Signature, error)
+	// Allow the unsigned command validation to be overriden in tests
+	unsignedCommandValidatorFunc func(string) (bool, error)
 }
 
 func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
@@ -193,14 +195,40 @@ func (s SharedSecretSigner) signData(command string, pluginJSON string) (Signatu
 }
 
 func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected Signature) error {
-	signature, err := s.signData(command, pluginJSON)
+	// step with just a command (no plugins) isn't signed
+	if expected == "" && pluginJSON == "" && command != "" {
+		log.Printf("⚠️ Command is unsigned, checking if it's allow-listed")
+
+		// allow a custom validator func to be provided in tests
+		validatorFunc := s.unsignedCommandValidatorFunc
+		if validatorFunc == nil {
+			validatorFunc = IsUnsignedCommandOk
+		}
+
+		isAllowed, err := validatorFunc(command)
+		if err != nil {
+			return err
+		}
+		if isAllowed {
+			log.Printf("Allowing unsigned command")
+			return nil
+		}
+		return errors.New("🚨 Signature missing. The provided command is not permitted to be unsigned.")
+	}
+
+	// allow signerFunc to be overwritten in tests
+	signerFunc := s.signerFunc
+	if signerFunc == nil {
+		signerFunc = s.signData
+	}
+	signature, err := signerFunc(command, pluginJSON)
 
 	if err != nil {
 		return err
 	}
 
 	if signature != expected {
-		return errors.New("🚨 Signature mismatch." +
+		return errors.New("🚨 Signature mismatch. " +
 			"Perhaps check the shared secret is the same across agents?")
 	}
 
