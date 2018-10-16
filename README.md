@@ -58,13 +58,13 @@ When the tool receives a pipeline for upload, it follows these steps:
 * Iterates through each step of a JSON pipeline
 * Extracts the `command` or `commands` block
 * Trims whitespace on resulting command
-* Calculates `HMAC(SHA256, command + BUILDKITE_JOB_ID + canonicalised(BUILDKITE_PLUGINS), shared-secret)`
+* Calculates `HMAC(SHA256, command + BUILDKITE_BUILD_ID + canonicalised(BUILDKITE_PLUGINS), shared-secret)`
 * Add `STEP_SIGNATURE={hash}` to the step `environment` block
 * Pipes the modified JSON pipeline to `buildkite-agent pipeline upload`
 
 When the tool is verifying a pipeline:
 
-* Calculates `HMAC(SHA256, BUILDKITE_COMMAND + BUILDKITE_JOB_ID + canonicalised(BUILDKITE_PLUGINS), shared-secret)`
+* Calculates `HMAC(SHA256, BUILDKITE_COMMAND + BUILDKITE_BUILD_ID + canonicalised(BUILDKITE_PLUGINS), shared-secret)`
 * Compare result with `STEP_SIGNATURE`
 * Fail if they don't match
 
