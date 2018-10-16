@@ -31,12 +31,20 @@ func IsUnsignedCommandOk(command string) (bool, error) {
 }
 
 func isWorkingDirectoryFile(fileName string) (bool, error) {
+	// this is based on https://github.com/buildkite/agent/blob/cc07aba854e35f0f31b0d743d7ec2829b425bb6a/bootstrap/bootstrap.go#L1013-L1030
+	// and ensures the given filename exists in the working directory
 	workingDirectory, err := os.Getwd()
 	if err != nil {
 		return false, err
 	}
 	pathToFile, err := filepath.Abs(filepath.Join(workingDirectory, fileName))
-	return err == nil && fileExists(pathToFile), nil
+	if err != nil {
+		return false, err
+	}
+
+	// Make sure the file is definitely within this working directory
+	return fileExists(pathToFile) &&
+		strings.HasPrefix(pathToFile, workingDirectory + string(os.PathSeparator)), nil
 }
 
 func fileExists(filename string) bool {
