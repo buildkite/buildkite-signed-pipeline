@@ -149,15 +149,36 @@ func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) 
 	var parsed []Plugin
 
 	switch t := plugins.(type) {
+	/*
+	 handles array syntax for referencing plugins, e.g.
+	 plugins:
+	  - foo#v1.2.3
+	  - bar#v1.2.3:
+	  - another#v1.2.3:
+	    a-parameter: true
+	*/
 	case []interface{}:
 		for _, item := range t {
-			for name, settings := range item.(map[string]interface{}) {
-				parsed = append(parsed, Plugin{name, settings.(map[string]interface{})})
+			plugin, err := NewPluginFromReference(item)
+			if err != nil {
+				return "", err
 			}
+			parsed = append(parsed, *plugin)
 		}
+	/*
+	 handles object syntax for referencing plugins, e.g.
+	 plugins:
+	  bar#v1.2.3:
+	  another#v1.2.3:
+	    a-parameter: true
+	*/
 	case map[string]interface{}:
-		for name, settings := range t {
-			parsed = append(parsed, Plugin{name, settings.(map[string]interface{})})
+		for item := range t {
+			plugin, err := NewPluginFromReference(item)
+			if err != nil {
+				return "", err
+			}
+			parsed = append(parsed, *plugin)
 		}
 	default:
 		return "", fmt.Errorf("Unknown plugin type %T", t)

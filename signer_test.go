@@ -121,6 +121,16 @@ func TestPipelines(t *testing.T) {
 			`{"steps":[{"env":{"STEP_SIGNATURE":"signature(,[{\"github.com/buildkite-plugins/docker-buildkite-plugin#v1.4.0\":{\"image\":\"node:7\"}}])"},"label":"I have no commands","plugins":[{"docker#v1.4.0":{"image":"node:7"}}]}]}`,
 		},
 		{
+			"Plugin object syntax without arguments",
+			`{"steps":[{"label":"I have no commands","plugins":[{"docker#v1.4.0":null}]}]}`,
+			`{"steps":[{"env":{"STEP_SIGNATURE":"signature(,[{\"github.com/buildkite-plugins/docker-buildkite-plugin#v1.4.0\":null}])"},"label":"I have no commands","plugins":[{"docker#v1.4.0":null}]}]}`,
+		},
+		{
+			"Plugin array syntax without arguments",
+			`{"steps":[{"label":"I have no commands","plugins":["docker#v1.4.0"]}]}`,
+			`{"steps":[{"env":{"STEP_SIGNATURE":"signature(,[{\"github.com/buildkite-plugins/docker-buildkite-plugin#v1.4.0\":null}])"},"label":"I have no commands","plugins":["docker#v1.4.0"]}]}`,
+		},
+		{
 			"Pipeline with multiple steps",
 			`{"steps":[{"command":"echo hello"},{"commands":["echo world", "echo foo"]}]}`,
 			`{"steps":[{"command":"echo hello","env":{"STEP_SIGNATURE":"signature(echo hello,)"}},{"commands":["echo world","echo foo"],"env":{"STEP_SIGNATURE":"signature(echo world\necho foo,)"}}]}`,
