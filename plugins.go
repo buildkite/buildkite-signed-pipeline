@@ -17,6 +17,23 @@ type Plugin struct {
 	Params map[string]interface{}
 }
 
+func NewPluginFromReference(item interface{}) (*Plugin, error) {
+	switch item.(type) {
+	// plugin references that are just a plugin name, e.g. docker#v1.2.3
+	case string:
+		return &Plugin{item.(string), nil}, nil
+	// plugin references that are a name and a set of settings
+	case map[string]interface{}:
+		for name, settings := range item.(map[string]interface{}) {
+			// note that x.(T) is avoided here as settings may be null in the case
+			// of plugins without parameters
+			parameters, _ := settings.(map[string]interface{})
+			return &Plugin{name, parameters}, nil
+		}
+	}
+	return nil, fmt.Errorf("Unknown plugin reference type %T", item)
+}
+
 func (p Plugin) Repository() string {
 	if m := officialPluginRegex.FindStringSubmatch(p.Name); len(m) == 3 {
 		return fmt.Sprintf(`github.com/buildkite-plugins/%s-buildkite-plugin%s`, m[1], m[2])
