@@ -47,6 +47,10 @@ func main() {
 		Flag("dry-run", "Just show the pipeline that will be uploaded").
 		BoolVar(&uploadCommand.DryRun)
 
+	uploadCommandClause.
+		Flag("replace", "Replace the rest of the existing pipeline with the steps uploaded.").
+		BoolVar(&uploadCommand.Replace)
+
 	verifyCommand := &verifyCommand{}
 	app.Command("verify", "Verify a job contains a signature").Action(verifyCommand.run)
 
@@ -80,9 +84,10 @@ func main() {
 }
 
 type uploadCommand struct {
-	Signer *SharedSecretSigner
-	File   *os.File
-	DryRun bool
+	Signer  *SharedSecretSigner
+	File    *os.File
+	DryRun  bool
+	Replace bool
 }
 
 func (l *uploadCommand) run(c *kingpin.ParseContext) error {
@@ -110,6 +115,10 @@ func (l *uploadCommand) run(c *kingpin.ParseContext) error {
 
 	if l.DryRun {
 		uploadArgs = append(uploadArgs, "--dry-run")
+	}
+
+	if l.Replace {
+		uploadArgs = append(uploadArgs, "--replace")
 	}
 
 	cmd := exec.Command("buildkite-agent", uploadArgs...)
