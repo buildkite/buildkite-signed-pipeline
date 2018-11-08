@@ -7,14 +7,33 @@ import (
 	"os"
 )
 
-func IsUnsignedCommandOk(command string) (bool, error) {
+func getUploadCommand(command string) (string, bool) {
+	// buildkite-signed-pipeline upload
 	rawUploadCommand := fmt.Sprintf("%s upload", filepath.Base(os.Args[0]))
+	if strings.HasPrefix(command, rawUploadCommand) {
+		return rawUploadCommand, true
+	}
 
-	if command == rawUploadCommand {
+	vanillaUploadCommand := "buildkite-agent pipeline upload"
+	if strings.HasPrefix(command, vanillaUploadCommand) {
+		return vanillaUploadCommand, true
+	}
+
+	return "", false
+}
+
+func IsUnsignedCommandOk(command string) (bool, error) {
+	uploadCommand, ok := getUploadCommand(command)
+	if !ok {
+		return false, nil
+	}
+
+	// straight upload
+	if uploadCommand == command {
 		return true, nil
 	}
 
-	uploadPrefix := rawUploadCommand + " "
+	uploadPrefix := uploadCommand + " "
 	// If there's no additional arguments, bail early
 	if !strings.HasPrefix(command, uploadPrefix) {
 		return false, nil
