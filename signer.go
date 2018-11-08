@@ -173,8 +173,9 @@ func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) 
 	    a-parameter: true
 	*/
 	case map[string]interface{}:
-		for item := range t {
-			plugin, err := NewPluginFromReference(item)
+		for k, v := range t {
+			// convert to a single map so it can be treated the same as the array syntax
+			plugin, err := NewPluginFromReference(map[string]interface{}{k:v})
 			if err != nil {
 				return "", err
 			}
