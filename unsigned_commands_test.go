@@ -21,7 +21,12 @@ func TestUnsignedCommandValidation(t *testing.T) {
 		{
 			"Normal buildkite upload",
 			"buildkite-agent pipeline upload",
-			false,
+			true,
+		},
+		{
+			"Normal buildkite upload with file argument",
+			"buildkite-agent pipeline upload go.mod",
+			true,
 		},
 		{
 			"Simple signed upload",
