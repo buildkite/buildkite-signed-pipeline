@@ -9,9 +9,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -69,7 +66,7 @@ func main() {
 		if awsSharedSecretId != "" {
 			log.Printf("Using secret from AWS SM %s", awsSharedSecretId)
 			var err error
-			signingSecret, err = getAwsSmSecret(awsSharedSecretId)
+			signingSecret, err = GetAwsSmSecret(awsSharedSecretId)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -185,16 +182,4 @@ func getPipelineFromBuildkiteAgent(f *os.File) (interface{}, error) {
 	}
 
 	return parsed, nil
-}
-
-func getAwsSmSecret(secretId string) (string, error) {
-	client := secretsmanager.New(session.New())
-	request := &secretsmanager.GetSecretValueInput {
-		SecretId: aws.String(secretId),
-	}
-	result, err := client.GetSecretValue(request)
-	if err != nil {
-		return "", err
-	}
-	return *result.SecretString, nil
 }
