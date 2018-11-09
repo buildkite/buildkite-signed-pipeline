@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -236,6 +237,20 @@ func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected S
 			return nil
 		}
 		return errors.New("🚨 Signature missing. The provided command is not permitted to be unsigned.")
+	}
+
+	if pluginJSON != "" {
+		// https://golang.org/pkg/encoding/json/#Marshal provides consistent ordering of JSON
+		// unmarshal and remarshal to ensure this ordering is the same as extraction
+		var plugins interface{}
+		if err := json.Unmarshal([]byte(pluginJSON), &plugins); err != nil {
+			return err
+		}
+		pluginBytes, err := json.Marshal(plugins)
+		if err != nil {
+			return err
+		}
+		pluginJSON = string(pluginBytes)
 	}
 
 	// allow signerFunc to be overwritten in tests
