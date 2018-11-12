@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -186,7 +185,18 @@ func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) 
 		return "", fmt.Errorf("Unknown plugin type %T", t)
 	}
 
-	return marshalPlugins(parsed)
+	pluginJSON, err := marshalPlugins(parsed)
+	if err != nil {
+		return "", err
+	}
+
+	// ensure the same plugin form (ordering, etc) is used as the verify step
+	canonicalJSON, err := canonicalisePluginJSON(pluginJSON)
+	if err != nil {
+		return "", err
+	}
+
+	return canonicalJSON, err
 }
 
 func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) {
@@ -240,17 +250,11 @@ func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected S
 	}
 
 	if pluginJSON != "" {
-		// https://golang.org/pkg/encoding/json/#Marshal provides consistent ordering of JSON
-		// unmarshal and remarshal to ensure this ordering is the same as extraction
-		var plugins interface{}
-		if err := json.Unmarshal([]byte(pluginJSON), &plugins); err != nil {
-			return err
-		}
-		pluginBytes, err := json.Marshal(plugins)
+		var err error
+		pluginJSON, err = canonicalisePluginJSON(pluginJSON)
 		if err != nil {
 			return err
 		}
-		pluginJSON = string(pluginBytes)
 	}
 
 	// allow signerFunc to be overwritten in tests

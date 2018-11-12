@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 )
 var (
 	// 'official-plugin' and 'official-plugin#v2'
@@ -57,4 +58,34 @@ func marshalPlugins(plugins []Plugin) (string, error) {
 		return "", nil
 	}
 	return string(b), nil
+}
+
+func getPluginPair(pluginReference map[string]interface{}) (string, interface{}) {
+	for k, v := range pluginReference {
+		return k, v
+	}
+	return "", nil
+}
+
+func canonicalisePluginJSON(pluginJSON string) (string, error) {
+	// plugin JSON is of the form [{"plugin-ref#version":{settings}},{"plugin-ref2#version":null}]
+	// https://golang.org/pkg/encoding/json/#Marshal provides consistent ordering of JSON
+	// unmarshal and remarshal to ensure this ordering is the same as extraction
+	var plugins []map[string]interface{}
+	if err := json.Unmarshal([]byte(pluginJSON), &plugins); err != nil {
+		return "", err
+	}
+
+	// sort by the plugin ref
+	sort.Slice(plugins, func(i, j int) bool {
+		thisName, _ := getPluginPair(plugins[i])
+		otherName, _ := getPluginPair(plugins[j])
+		return thisName < otherName
+	})
+
+	pluginBytes, err := json.Marshal(plugins)
+	if err != nil {
+		return "", err
+	}
+	return string(pluginBytes), nil
 }
