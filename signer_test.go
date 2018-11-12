@@ -251,6 +251,27 @@ func TestVerifyPluginsAndNoCommand(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestVerifyPluginsOrderIndependent(t *testing.T) {
+	const originalJSON = `[{"github.com/buildkite-plugins/b-plugin":null},{"github.com/buildkite-plugins/a-plugin":{"image":"node8"}}]`
+	const expectedPluginJSON = `[{"github.com/buildkite-plugins/a-plugin":{"image":"node8"}},{"github.com/buildkite-plugins/b-plugin":null}]`
+	const expectedCommand = ""
+	const expectedSignature = Signature("llamas")
+
+	signer := NewSharedSecretSigner("secret-llamas")
+	signer.signerFunc = func(command, plugins string) (Signature, error) {
+		assert.Equal(t, expectedCommand, command)
+		assert.Equal(t, expectedPluginJSON, plugins)
+		return expectedSignature, nil
+	}
+	signer.unsignedCommandValidatorFunc = func(command string) (bool, error) {
+		assert.Fail(t, "Unsigned command validation should not be called")
+		return true, nil
+	}
+
+	err := signer.Verify(expectedCommand, originalJSON, expectedSignature)
+	assert.Nil(t, err)
+}
+
 func TestVerifyAllowsUnsignedCommand(t *testing.T) {
 	const expectedPluginJSON = ""
 	const expectedCommand = "buildkite-signed-pipeline upload"
