@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"testing"
 	"os"
 	"path/filepath"
@@ -25,8 +24,13 @@ func TestUnsignedCommandValidation(t *testing.T) {
 		},
 		{
 			"Normal buildkite upload with file argument",
-			"buildkite-agent pipeline upload go.mod",
+			"buildkite-agent pipeline upload .buildkite/pipeline.yml",
 			true,
+		},
+		{
+			"Normal buildkite upload with quoted file argument",
+			`buildkite-agent pipeline upload ".buildkite/pipeline.yml"`,
+			false,
 		},
 		{
 			"Simple signed upload",
@@ -34,18 +38,13 @@ func TestUnsignedCommandValidation(t *testing.T) {
 			true,
 		},
 		{
-			"Upload with existing file argument",
-			fmt.Sprintf("%s upload go.mod", thisTool),
-			true,
+			"Upload with special shell characters",
+			fmt.Sprintf("%s upload `rm -rf /`", thisTool),
+			false,
 		},
 		{
-			"Upload with relative argument inside working directory",
-			fmt.Sprintf("%s upload .git/../go.mod", thisTool),
-			true,
-		},
-		{
-			"Upload with not found file argument",
-			fmt.Sprintf("%s upload missing-file.yaml", thisTool),
+			"Upload with shell variable",
+			fmt.Sprintf(`%s upload "$PWD"`, thisTool),
 			false,
 		},
 	} {
@@ -57,23 +56,4 @@ func TestUnsignedCommandValidation(t *testing.T) {
 			assert.Equal(t, isAllowed, tc.Expected)
 		})
 	}
-}
-
-func TestUnsignedCommandWithOutsideFile(t *testing.T) {
-	thisTool := filepath.Base(os.Args[0])
-
-	workingDirectory, err := os.Getwd()
-	assert.Nil(t, err)
-
-	tempFile, err := ioutil.TempFile("", "outside")
-	assert.Nil(t, err)
-	defer os.Remove(tempFile.Name())
-
-	// create a path relative to the outside file, this will be something like ../../../tmp/foo
-	relPath, err := filepath.Rel(workingDirectory, tempFile.Name())
-
-	command := fmt.Sprintf("%s upload %s", thisTool, relPath)
-	isAllowed, err := IsUnsignedCommandOk(command)
-	assert.Nil(t, err)
-	assert.False(t, isAllowed)
 }
