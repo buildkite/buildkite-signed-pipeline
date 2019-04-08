@@ -106,6 +106,11 @@ func TestPipelines(t *testing.T) {
 			`{"steps":[{"command":"echo Hello \"Fred\"","env":{"EXISTING":"existing-value","STEP_SIGNATURE":"signature(echo Hello \"Fred\",)"}}]}`,
 		},
 		{
+			"Command with existing env list",
+			`{"steps":[{"command":"echo Hello \"Fred\"", "env":["EXISTING=existing-value"]}]}`,
+			`{"steps":[{"command":"echo Hello \"Fred\"","env":["EXISTING=existing-value","STEP_SIGNATURE=signature(echo Hello \"Fred\",)"]}]}`,
+		},
+		{
 			"Pipeline with multiple commands",
 			`{"steps":[{"command":["echo Hello World", "echo Foo Bar"]}]}`,
 			`{"steps":[{"command":["echo Hello World","echo Foo Bar"],"env":{"STEP_SIGNATURE":"signature(echo Hello World\necho Foo Bar,)"}}]}`,

@@ -72,6 +72,32 @@ func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
 	return copy.Interface(), nil
 }
 
+func addSignature(env interface{}, signature Signature) (interface{}, error) {
+	// if there's no env, default to the map format
+	if env == nil {
+		env = make(map[string]interface{})
+	}
+
+	switch i := env.(type) {
+	// key=value environment variables
+	case []interface{}:
+		envCopy := make([]interface{}, len(i))
+		copy(envCopy, i)
+		envCopy = append(envCopy, fmt.Sprintf("%s=%s", stepSignatureEnv, signature))
+		return envCopy, nil
+	// map of environment variables
+	case map[string]interface{}:
+		envCopy := make(map[string]interface{})
+		reflectedEnv := reflect.ValueOf(i)
+		for _, key := range reflectedEnv.MapKeys() {
+			envCopy[key.String()] = reflectedEnv.MapIndex(key).Interface()
+		}
+		envCopy[stepSignatureEnv] = signature
+		return envCopy, nil
+	}
+	return nil, fmt.Errorf("Unknown environment type %T", env)
+}
+
 func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 	original := step.Elem()
 
@@ -130,17 +156,10 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		return nil, err
 	}
 
-	env := make(map[string]interface{})
-	existingEnv, hasEnv := copy["env"]
-	if hasEnv {
-		reflectedEnv := reflect.ValueOf(existingEnv)
-		for _, key := range reflectedEnv.MapKeys() {
-			env[key.String()] = reflectedEnv.MapIndex(key).Interface()
-		}
+	existingEnv, _ := copy["env"]
+	if copy["env"], err = addSignature(existingEnv, signature); err != nil {
+		return nil, err
 	}
-
-	env[stepSignatureEnv] = signature
-	copy["env"] = env
 
 	return copy, nil
 }
