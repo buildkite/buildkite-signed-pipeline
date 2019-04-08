@@ -1,5 +1,5 @@
 FLAGS = -s -w
-FILES = $(shell find *.go)
+FILES = $(shell find . -name '*.go')
 
 .PHONY: build
 build: dist/buildkite-signed-pipeline-linux-amd64 \
