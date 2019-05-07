@@ -13,11 +13,25 @@ const (
 	batchSpecialChars = "^&;,=%"
 )
 
+func getToolNames() []string {
+	thisTool := filepath.Base(os.Args[0])
+	toolNames := []string{thisTool}
+
+	// handle both thisTool and thisTool.exe on windows
+	if runtime.GOOS == `windows` {
+		toolNames = append(toolNames, strings.TrimSuffix(thisTool, ".exe"))
+	}
+
+	return toolNames
+}
+
 func isUploadCommand(command string) bool {
-	// buildkite-signed-pipeline upload
-	rawUploadCommand := fmt.Sprintf("%s upload", filepath.Base(os.Args[0]))
-	if strings.HasPrefix(command, rawUploadCommand) {
-		return true
+	for _, toolName := range getToolNames() {
+		// buildkite-signed-pipeline upload
+		rawUploadCommand := fmt.Sprintf("%s upload", toolName)
+		if strings.HasPrefix(command, rawUploadCommand) {
+			return true
+		}
 	}
 
 	// vanilla upload command
