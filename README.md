@@ -68,6 +68,8 @@ When the tool is verifying a pipeline:
 * Compare result with `STEP_SIGNATURE`
 * Fail if they don't match
 
+Note that in the current version of this tool the secret is symmetric -- it's the same for signing/verifying.
+
 ## Attack scenarios
 
 For reference, this tool considers at least the following attack scenarios:
