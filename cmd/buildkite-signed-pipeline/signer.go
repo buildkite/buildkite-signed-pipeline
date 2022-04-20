@@ -40,26 +40,28 @@ func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
 
 	copy := reflect.MakeMap(original.Type())
 
-	// Copy values to new map
 	// TODO handle pipelines of single commands (e.g. `command: foo`)
+	// Iterate over the top level map (where keys are things like, steps, agents, env)
 	for _, mk := range original.MapKeys() {
 		keyName := mk.String()
 		item := original.MapIndex(mk)
 
-		// references many steps
+		// We only care about "steps" at the top level, so dive into this field
 		if strings.EqualFold(keyName, "steps") {
 			unwrapped := item.Elem()
 			if unwrapped.Kind() == reflect.Slice {
+				// newSteps will replace the existing steps. they will be built up with the signature added
 				var newSteps []interface{}
 				for i := 0; i < unwrapped.Len(); i += 1 {
 					stepItem := unwrapped.Index(i)
+					// If the current stepItem is a complex type (list or map)
 					if stepItem.Elem().Kind() != reflect.String {
 						signedStep, err := s.signStep(stepItem)
 						if err != nil {
 							return nil, err
 						}
 						newSteps = append(newSteps, signedStep)
-					} else {
+					} else { // The current stepItem is a plain string (like just `wait` or `block`) so added it without modification
 						newSteps = append(newSteps, stepItem.Interface())
 					}
 				}
@@ -121,6 +123,15 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 			// no commands to sign
 			rawCommand = ""
 		}
+	}
+
+	// if the step is a `group` we need to recurse to calculate the signature of nested command steps
+	if _, hasGroup := copy["group"]; hasGroup {
+		pipeline := make(map[string]interface{})
+		pipeline["steps"] = copy["steps"]
+		signedGroup, err := s.Sign(pipeline)
+		copy["steps"] = signedGroup.(map[string]interface{})["steps"]
+		return copy, err
 	}
 
 	// extract the plugin declaration for signing

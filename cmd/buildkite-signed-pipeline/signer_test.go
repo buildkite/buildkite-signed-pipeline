@@ -75,6 +75,25 @@ func TestSigningCommandWithPlugins(t *testing.T) {
 	assert.Equal(t, "llamas", sig)
 }
 
+func TestSigningCommandWithGroup(t *testing.T) {
+	jsonPipeline := `{"steps":[{"group":"Tests","steps":[{"command":"echo pass"}]}]}`
+
+	var parsed interface{}
+	if err := json.Unmarshal([]byte(jsonPipeline), &parsed); err != nil {
+		t.Fatal(err)
+	}
+
+	signer := NewSharedSecretSigner("secret-llamas")
+
+	signed, err := signer.Sign(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	j, err := json.Marshal(signed)
+	assert.Equal(t, `{"steps":[{"group":"Tests","steps":[{"command":"echo pass","env":{"STEP_SIGNATURE":"sha256:2c3cb7057477c9630e26532ab6b1707fffc4df3efeb6488bcd9ff2784e1de6fa"}}]}]}`, string(j))
+}
+
 func mapInto(dest interface{}, source interface{}) error {
 	jsonBytes, err := json.Marshal(source)
 	if err != nil {
