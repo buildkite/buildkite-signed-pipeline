@@ -1,6 +1,6 @@
 module github.com/seek-oss/buildkite-signed-pipeline
 
-go 1.17
+go 1.20
 
 require (
 	github.com/aws/aws-sdk-go v1.41.17
