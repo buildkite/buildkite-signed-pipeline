@@ -1,11 +1,11 @@
 package main
 
 import (
-	"strings"
-	"path/filepath"
-	"runtime"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 )
 
 const (
@@ -44,9 +44,9 @@ func isUploadCommand(command string) bool {
 
 func hasSpecialShellChars(str string) bool {
 	if runtime.GOOS == `windows` {
-		return strings.ContainsAny(str, batchSpecialChars);
+		return strings.ContainsAny(str, batchSpecialChars)
 	}
-	return strings.ContainsAny(str, posixSpecialChars);
+	return strings.ContainsAny(str, posixSpecialChars)
 }
 
 func IsUnsignedCommandOk(command string) (bool, error) {

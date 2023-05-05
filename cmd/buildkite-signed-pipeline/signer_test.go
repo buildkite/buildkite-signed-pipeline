@@ -36,7 +36,7 @@ func TestSigningCommandWithPlugins(t *testing.T) {
 					"my-plugin": map[string]interface{}{
 						"my-setting": true,
 					},
-					"seek-oss/custom-plugin": map[string]interface{} {
+					"seek-oss/custom-plugin": map[string]interface{}{
 						"a-setting": true,
 					},
 				},
@@ -57,8 +57,8 @@ func TestSigningCommandWithPlugins(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var result struct{
-		Steps []struct{
+	var result struct {
+		Steps []struct {
 			Env map[string]string
 		}
 	}

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	stepSignatureEnv  = `STEP_SIGNATURE`
+	stepSignatureEnv    = `STEP_SIGNATURE`
 	buildkiteBuildIDEnv = `BUILDKITE_BUILD_ID`
 )
 
