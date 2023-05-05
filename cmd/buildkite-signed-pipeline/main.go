@@ -154,7 +154,7 @@ func (v *verifyCommand) run(c *kingpin.ParseContext) error {
 	return nil
 }
 
-func getPipelineFromBuildkiteAgent(f *os.File) (interface{}, error) {
+func getPipelineFromBuildkiteAgent(f *os.File) (any, error) {
 	args := []string{"pipeline", "upload", "--dry-run"}
 
 	// handle an optional path to a pipeline.yml
@@ -176,7 +176,7 @@ func getPipelineFromBuildkiteAgent(f *os.File) (interface{}, error) {
 		return nil, err
 	}
 
-	var parsed interface{}
+	var parsed any
 	if err := json.Unmarshal(out.Bytes(), &parsed); err != nil {
 		return nil, err
 	}

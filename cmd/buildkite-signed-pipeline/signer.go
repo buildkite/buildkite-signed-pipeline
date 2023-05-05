@@ -30,7 +30,7 @@ type SharedSecretSigner struct {
 	unsignedCommandValidatorFunc func(string) (bool, error)
 }
 
-func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
+func (s SharedSecretSigner) Sign(pipeline any) (any, error) {
 	original := reflect.ValueOf(pipeline)
 
 	// only process pipelines that are either a single complex step (not "wait") or a collection of steps
@@ -51,7 +51,7 @@ func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
 			unwrapped := item.Elem()
 			if unwrapped.Kind() == reflect.Slice {
 				// newSteps will replace the existing steps. they will be built up with the signature added
-				var newSteps []interface{}
+				var newSteps []any
 				for i := 0; i < unwrapped.Len(); i += 1 {
 					stepItem := unwrapped.Index(i)
 					// If the current stepItem is a complex type (list or map)
@@ -74,22 +74,22 @@ func (s SharedSecretSigner) Sign(pipeline interface{}) (interface{}, error) {
 	return copy.Interface(), nil
 }
 
-func addSignature(env interface{}, signature Signature) (interface{}, error) {
+func addSignature(env any, signature Signature) (any, error) {
 	// if there's no env, default to the map format
 	if env == nil {
-		env = make(map[string]interface{})
+		env = make(map[string]any)
 	}
 
 	switch i := env.(type) {
 	// key=value environment variables
-	case []interface{}:
-		envCopy := make([]interface{}, len(i))
+	case []any:
+		envCopy := make([]any, len(i))
 		copy(envCopy, i)
 		envCopy = append(envCopy, fmt.Sprintf("%s=%s", stepSignatureEnv, signature))
 		return envCopy, nil
 	// map of environment variables
-	case map[string]interface{}:
-		envCopy := make(map[string]interface{})
+	case map[string]any:
+		envCopy := make(map[string]any)
 		reflectedEnv := reflect.ValueOf(i)
 		for _, key := range reflectedEnv.MapKeys() {
 			envCopy[key.String()] = reflectedEnv.MapIndex(key).Interface()
@@ -100,7 +100,7 @@ func addSignature(env interface{}, signature Signature) (interface{}, error) {
 	return nil, fmt.Errorf("unknown environment type %T", env)
 }
 
-func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
+func (s SharedSecretSigner) signStep(step reflect.Value) (any, error) {
 	original := step.Elem()
 
 	// Check to make sure the interface isn't nil
@@ -109,7 +109,7 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 	}
 
 	// Create a new object
-	copy := make(map[string]interface{})
+	copy := make(map[string]any)
 	for _, key := range original.MapKeys() {
 		copy[key.String()] = original.MapIndex(key).Interface()
 	}
@@ -127,10 +127,10 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 
 	// if the step is a `group` we need to recurse to calculate the signature of nested command steps
 	if _, hasGroup := copy["group"]; hasGroup {
-		pipeline := make(map[string]interface{})
+		pipeline := make(map[string]any)
 		pipeline["steps"] = copy["steps"]
 		signedGroup, err := s.Sign(pipeline)
-		copy["steps"] = signedGroup.(map[string]interface{})["steps"]
+		copy["steps"] = signedGroup.(map[string]any)["steps"]
 		return copy, err
 	}
 
@@ -175,7 +175,7 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 	return copy, nil
 }
 
-func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) {
+func (s SharedSecretSigner) extractPlugins(plugins any) (string, error) {
 	var parsed []Plugin
 
 	switch t := plugins.(type) {
@@ -187,7 +187,7 @@ func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) 
 	  - another#v1.2.3:
 	    a-parameter: true
 	*/
-	case []interface{}:
+	case []any:
 		for _, item := range t {
 			plugin, err := NewPluginFromReference(item)
 			if err != nil {
@@ -202,10 +202,10 @@ func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) 
 	  another#v1.2.3:
 	    a-parameter: true
 	*/
-	case map[string]interface{}:
+	case map[string]any:
 		for k, v := range t {
 			// convert to a single map so it can be treated the same as the array syntax
-			plugin, err := NewPluginFromReference(map[string]interface{}{k: v})
+			plugin, err := NewPluginFromReference(map[string]any{k: v})
 			if err != nil {
 				return "", err
 			}
@@ -229,7 +229,7 @@ func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) 
 	return canonicalJSON, err
 }
 
-func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) {
+func (s SharedSecretSigner) extractCommand(command any) (string, error) {
 	value := reflect.ValueOf(command)
 
 	// expand into simple list of commands

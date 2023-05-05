@@ -11,7 +11,7 @@ import (
 func TestSigningCommand(t *testing.T) {
 	jsonPipeline := `{"steps":[{"command":"echo Hello \"Fred\""}]}`
 
-	var parsed interface{}
+	var parsed any
 	if err := json.Unmarshal([]byte(jsonPipeline), &parsed); err != nil {
 		t.Fatal(err)
 	}
@@ -29,15 +29,15 @@ func TestSigningCommand(t *testing.T) {
 }
 
 func TestSigningCommandWithPlugins(t *testing.T) {
-	var pipeline = map[string]interface{}{
-		"steps": []interface{}{
-			map[string]interface{}{
+	var pipeline = map[string]any{
+		"steps": []any{
+			map[string]any{
 				"command": "my command",
-				"plugins": map[string]interface{}{
-					"my-plugin": map[string]interface{}{
+				"plugins": map[string]any{
+					"my-plugin": map[string]any{
 						"my-setting": true,
 					},
-					"seek-oss/custom-plugin": map[string]interface{}{
+					"seek-oss/custom-plugin": map[string]any{
 						"a-setting": true,
 					},
 				},
@@ -79,7 +79,7 @@ func TestSigningCommandWithPlugins(t *testing.T) {
 func TestSigningCommandWithGroup(t *testing.T) {
 	jsonPipeline := `{"steps":[{"group":"Tests","steps":[{"command":"echo pass"}]}]}`
 
-	var parsed interface{}
+	var parsed any
 	if err := json.Unmarshal([]byte(jsonPipeline), &parsed); err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestSigningCommandWithGroup(t *testing.T) {
 	assert.Equal(t, `{"steps":[{"group":"Tests","steps":[{"command":"echo pass","env":{"STEP_SIGNATURE":"sha256:2c3cb7057477c9630e26532ab6b1707fffc4df3efeb6488bcd9ff2784e1de6fa"}}]}]}`, string(j))
 }
 
-func mapInto(dest interface{}, source interface{}) error {
+func mapInto(dest any, source any) error {
 	jsonBytes, err := json.Marshal(source)
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func TestPipelines(t *testing.T) {
 			signer.signerFunc = func(command, plugins string) (Signature, error) {
 				return Signature(fmt.Sprintf("signature(%s,%s)", command, plugins)), nil
 			}
-			var pipeline interface{}
+			var pipeline any
 			err := json.Unmarshal([]byte(tc.PipelineJSON), &pipeline)
 			if err != nil {
 				t.Fatal(err)
