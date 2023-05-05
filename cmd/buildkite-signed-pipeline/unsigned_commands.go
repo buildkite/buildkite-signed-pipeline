@@ -35,11 +35,7 @@ func isUploadCommand(command string) bool {
 	}
 
 	// vanilla upload command
-	if strings.HasPrefix(command, "buildkite-agent pipeline upload") {
-		return true
-	}
-
-	return false
+	return strings.HasPrefix(command, "buildkite-agent pipeline upload")
 }
 
 func hasSpecialShellChars(str string) bool {

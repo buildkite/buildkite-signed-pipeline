@@ -97,7 +97,7 @@ func addSignature(env interface{}, signature Signature) (interface{}, error) {
 		envCopy[stepSignatureEnv] = signature
 		return envCopy, nil
 	}
-	return nil, fmt.Errorf("Unknown environment type %T", env)
+	return nil, fmt.Errorf("unknown environment type %T", env)
 }
 
 func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
@@ -105,7 +105,7 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 
 	// Check to make sure the interface isn't nil
 	if !original.IsValid() {
-		return nil, errors.New("Nil interface provided")
+		return nil, errors.New("nil interface provided")
 	}
 
 	// Create a new object
@@ -167,7 +167,7 @@ func (s SharedSecretSigner) signStep(step reflect.Value) (interface{}, error) {
 		return nil, err
 	}
 
-	existingEnv, _ := copy["env"]
+	existingEnv := copy["env"]
 	if copy["env"], err = addSignature(existingEnv, signature); err != nil {
 		return nil, err
 	}
@@ -205,14 +205,14 @@ func (s SharedSecretSigner) extractPlugins(plugins interface{}) (string, error) 
 	case map[string]interface{}:
 		for k, v := range t {
 			// convert to a single map so it can be treated the same as the array syntax
-			plugin, err := NewPluginFromReference(map[string]interface{}{k:v})
+			plugin, err := NewPluginFromReference(map[string]interface{}{k: v})
 			if err != nil {
 				return "", err
 			}
 			parsed = append(parsed, *plugin)
 		}
 	default:
-		return "", fmt.Errorf("Unknown plugin type %T", t)
+		return "", fmt.Errorf("unknown plugin type %T", t)
 	}
 
 	pluginJSON, err := marshalPlugins(parsed)
@@ -241,7 +241,7 @@ func (s SharedSecretSigner) extractCommand(command interface{}) (string, error) 
 	} else if value.Kind() == reflect.String {
 		commandStrings = append(commandStrings, value.String())
 	} else {
-		return "", fmt.Errorf("Unexpected type for command: %T", command)
+		return "", fmt.Errorf("unexpected type for command: %T", command)
 	}
 
 	return strings.Join(commandStrings, "\n"), nil
@@ -276,7 +276,7 @@ func (s SharedSecretSigner) Verify(command string, pluginJSON string, expected S
 			log.Printf("Allowing unsigned command")
 			return nil
 		}
-		return errors.New("🚨 Signature missing. The provided command is not permitted to be unsigned.")
+		return errors.New("🚨 Signature missing. The provided command is not permitted to be unsigned")
 	}
 
 	if pluginJSON != "" {

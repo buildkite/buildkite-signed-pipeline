@@ -24,6 +24,7 @@ func TestSigningCommand(t *testing.T) {
 	}
 
 	j, err := json.Marshal(signed)
+	assert.NoError(t, err)
 	assert.Equal(t, `{"steps":[{"command":"echo Hello \"Fred\"","env":{"STEP_SIGNATURE":"sha256:a3ea512c6a88aa490d50879ef7ad7e3bc27c6f286435a9660fb662960e63592c"}}]}`, string(j))
 }
 
@@ -91,6 +92,7 @@ func TestSigningCommandWithGroup(t *testing.T) {
 	}
 
 	j, err := json.Marshal(signed)
+	assert.NoError(t, err)
 	assert.Equal(t, `{"steps":[{"group":"Tests","steps":[{"command":"echo pass","env":{"STEP_SIGNATURE":"sha256:2c3cb7057477c9630e26532ab6b1707fffc4df3efeb6488bcd9ff2784e1de6fa"}}]}]}`, string(j))
 }
 
@@ -266,7 +268,7 @@ func TestVerifyPluginsAndNoCommand(t *testing.T) {
 		assert.Equal(t, expectedPluginJSON, plugins)
 		return expectedSignature, nil
 	}
-	signer.unsignedCommandValidatorFunc = func(command string) (bool, error) {
+	signer.unsignedCommandValidatorFunc = func(_ string) (bool, error) {
 		assert.Fail(t, "Unsigned command validation should not be called")
 		return true, nil
 	}
@@ -287,7 +289,7 @@ func TestVerifyPluginsOrderIndependent(t *testing.T) {
 		assert.Equal(t, expectedPluginJSON, plugins)
 		return expectedSignature, nil
 	}
-	signer.unsignedCommandValidatorFunc = func(command string) (bool, error) {
+	signer.unsignedCommandValidatorFunc = func(_ string) (bool, error) {
 		assert.Fail(t, "Unsigned command validation should not be called")
 		return true, nil
 	}
@@ -301,7 +303,7 @@ func TestVerifyAllowsUnsignedCommand(t *testing.T) {
 	const expectedCommand = "buildkite-signed-pipeline upload"
 
 	signer := NewSharedSecretSigner("secret-llamas")
-	signer.signerFunc = func(command, plugins string) (Signature, error) {
+	signer.signerFunc = func(_, _ string) (Signature, error) {
 		assert.Fail(t, "Signer should not be called")
 		return "", nil
 	}
@@ -319,7 +321,7 @@ func TestVerifyRejectsUnsignedCommand(t *testing.T) {
 	const expectedCommand = "something-naughty"
 
 	signer := NewSharedSecretSigner("secret-llamas")
-	signer.signerFunc = func(command, plugins string) (Signature, error) {
+	signer.signerFunc = func(_, _ string) (Signature, error) {
 		assert.Fail(t, "Signer should not be called")
 		return "", nil
 	}
@@ -342,7 +344,7 @@ func TestVerifyRejectsUnsignedCommandWithPlugins(t *testing.T) {
 		assert.Equal(t, expectedPluginJSON, plugins)
 		return Signature("not the signature"), nil
 	}
-	signer.unsignedCommandValidatorFunc = func(command string) (bool, error) {
+	signer.unsignedCommandValidatorFunc = func(_ string) (bool, error) {
 		assert.Fail(t, "Unsigned command validation should not be called")
 		return true, nil
 	}

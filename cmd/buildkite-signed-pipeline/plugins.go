@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 )
+
 var (
 	// 'official-plugin' and 'official-plugin#v2'
 	officialPluginRegex = regexp.MustCompile(`^([A-Za-z0-9-]+)(#.+)?$`)
@@ -32,7 +33,7 @@ func NewPluginFromReference(item interface{}) (*Plugin, error) {
 			return &Plugin{name, parameters}, nil
 		}
 	}
-	return nil, fmt.Errorf("Unknown plugin reference type %T", item)
+	return nil, fmt.Errorf("unknown plugin reference type %T", item)
 }
 
 func (p Plugin) Repository() string {
