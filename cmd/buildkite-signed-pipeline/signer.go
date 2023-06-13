@@ -46,32 +46,49 @@ func (s SharedSecretSigner) Sign(pipeline any) (any, error) {
 		keyName := mk.String()
 		item := original.MapIndex(mk)
 
-		// We only care about "steps" at the top level, so dive into this field
-		if strings.EqualFold(keyName, "steps") {
-			unwrapped := item.Elem()
-			if unwrapped.Kind() == reflect.Slice {
-				// newSteps will replace the existing steps. they will be built up with the signature added
-				var newSteps []any
-				for i := 0; i < unwrapped.Len(); i += 1 {
-					stepItem := unwrapped.Index(i)
-					// If the current stepItem is a complex type (list or map)
-					if stepItem.Elem().Kind() != reflect.String {
-						signedStep, err := s.signStep(stepItem)
-						if err != nil {
-							return nil, err
-						}
-						newSteps = append(newSteps, signedStep)
-					} else { // The current stepItem is a plain string (like just `wait` or `block`) so added it without modification
-						newSteps = append(newSteps, stepItem.Interface())
-					}
-				}
-				item = reflect.ValueOf(newSteps)
-			}
+		elem, err := s.maybeSignElements(keyName, item)
+		if err != nil {
+			return nil, fmt.Errorf("signing pipeline element %s: %w", keyName, err)
 		}
-		copy.SetMapIndex(mk, item)
+
+		copy.SetMapIndex(mk, elem)
 	}
 
 	return copy.Interface(), nil
+}
+
+func (s SharedSecretSigner) maybeSignElements(keyName string, item reflect.Value) (reflect.Value, error) {
+	// We only care about "steps" at the top level, so return it unchanged if it's not that
+	if !strings.EqualFold(keyName, "steps") {
+		return item, nil
+	}
+
+	unwrapped := item.Elem()
+	if unwrapped.Kind() != reflect.Slice {
+		return item, nil
+	}
+
+	// newSteps will replace the existing steps. they will be built up with the signature added
+	newSteps := make([]any, 0, unwrapped.Len())
+	for i := 0; i < unwrapped.Len(); i += 1 {
+		stepItem := unwrapped.Index(i)
+
+		if stepItem.Elem().Kind() == reflect.String {
+			// The current stepItem is a plain string (like just `wait` or `block`) so add it without modification
+			newSteps = append(newSteps, stepItem.Interface())
+			continue
+		}
+
+		// Otherwise, it's (probably?) a step object, so sign it
+		signedStep, err := s.signStep(stepItem)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("signing step: %w", err)
+		}
+
+		newSteps = append(newSteps, signedStep)
+	}
+
+	return reflect.ValueOf(newSteps), nil
 }
 
 func addSignature(env any, signature Signature) (any, error) {
@@ -81,22 +98,25 @@ func addSignature(env any, signature Signature) (any, error) {
 	}
 
 	switch i := env.(type) {
-	// key=value environment variables
-	case []any:
+	case []any: // key=value environment variables
 		envCopy := make([]any, len(i))
 		copy(envCopy, i)
+
 		envCopy = append(envCopy, fmt.Sprintf("%s=%s", stepSignatureEnv, signature))
 		return envCopy, nil
-	// map of environment variables
-	case map[string]any:
+
+	case map[string]any: // map of environment variables
 		envCopy := make(map[string]any)
 		reflectedEnv := reflect.ValueOf(i)
+
 		for _, key := range reflectedEnv.MapKeys() {
 			envCopy[key.String()] = reflectedEnv.MapIndex(key).Interface()
 		}
+
 		envCopy[stepSignatureEnv] = signature
 		return envCopy, nil
 	}
+
 	return nil, fmt.Errorf("unknown environment type %T", env)
 }
 
