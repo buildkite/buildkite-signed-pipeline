@@ -16,4 +16,3 @@ func TestParseRegionFromAwsSmId(t *testing.T) {
 	_, ok := getAwsSmSecretRegion("just-an-id")
 	assert.False(t, ok)
 }
-

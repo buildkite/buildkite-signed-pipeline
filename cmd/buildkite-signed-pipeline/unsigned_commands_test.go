@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"testing"
 	"os"
 	"path/filepath"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -13,9 +13,9 @@ func TestUnsignedCommandValidation(t *testing.T) {
 	thisTool := filepath.Base(os.Args[0])
 
 	for _, tc := range []struct {
-		Name         string
-		Command      string
-		Expected     bool
+		Name     string
+		Command  string
+		Expected bool
 	}{
 		{
 			"Normal buildkite upload",

@@ -51,7 +51,7 @@ func main() {
 	verifyCommand := &verifyCommand{}
 	app.Command("verify", "Verify a job contains a signature").Action(verifyCommand.run)
 
-	app.PreAction(func(c *kingpin.ParseContext) error {
+	app.PreAction(func(_ *kingpin.ParseContext) error {
 		if sharedSecret == "" && awsSharedSecretId == "" {
 			return errors.New("One of --shared-secret or --aws-sm-shared-secret-id must be provided")
 		}
@@ -60,7 +60,7 @@ func main() {
 
 	// This happens after parse, we need to create a signer object for all of our
 	// commands.
-	app.Action(func(c *kingpin.ParseContext) error {
+	app.Action(func(_ *kingpin.ParseContext) error {
 		signingSecret := sharedSecret
 
 		if awsSharedSecretId != "" {
@@ -154,7 +154,7 @@ func (v *verifyCommand) run(c *kingpin.ParseContext) error {
 	return nil
 }
 
-func getPipelineFromBuildkiteAgent(f *os.File) (interface{}, error) {
+func getPipelineFromBuildkiteAgent(f *os.File) (any, error) {
 	args := []string{"pipeline", "upload", "--dry-run"}
 
 	// handle an optional path to a pipeline.yml
@@ -176,7 +176,7 @@ func getPipelineFromBuildkiteAgent(f *os.File) (interface{}, error) {
 		return nil, err
 	}
 
-	var parsed interface{}
+	var parsed any
 	if err := json.Unmarshal(out.Bytes(), &parsed); err != nil {
 		return nil, err
 	}

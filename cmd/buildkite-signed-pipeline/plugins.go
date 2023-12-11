@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 )
+
 var (
 	// 'official-plugin' and 'official-plugin#v2'
 	officialPluginRegex = regexp.MustCompile(`^([A-Za-z0-9-]+)(#.+)?$`)
@@ -15,24 +16,24 @@ var (
 
 type Plugin struct {
 	Name   string
-	Params map[string]interface{}
+	Params map[string]any
 }
 
-func NewPluginFromReference(item interface{}) (*Plugin, error) {
+func NewPluginFromReference(item any) (*Plugin, error) {
 	switch i := item.(type) {
 	// plugin references that are just a plugin name, e.g. docker#v1.2.3
 	case string:
 		return &Plugin{i, nil}, nil
 	// plugin references that are a name and a set of settings
-	case map[string]interface{}:
+	case map[string]any:
 		for name, settings := range i {
 			// note that x.(T) is avoided here as settings may be null in the case
 			// of plugins without parameters
-			parameters, _ := settings.(map[string]interface{})
+			parameters, _ := settings.(map[string]any)
 			return &Plugin{name, parameters}, nil
 		}
 	}
-	return nil, fmt.Errorf("Unknown plugin reference type %T", item)
+	return nil, fmt.Errorf("unknown plugin reference type %T", item)
 }
 
 func (p Plugin) Repository() string {
@@ -47,9 +48,9 @@ func (p Plugin) Repository() string {
 
 // The bootstrap expects an array of plugins like [{"plugin1#v1.0.0":{...}}, {"plugin2#v1.0.0":{...}}]
 func marshalPlugins(plugins []Plugin) (string, error) {
-	var p []interface{}
+	var p []any
 	for _, plugin := range plugins {
-		p = append(p, map[string]interface{}{
+		p = append(p, map[string]any{
 			plugin.Repository(): plugin.Params,
 		})
 	}
@@ -60,7 +61,7 @@ func marshalPlugins(plugins []Plugin) (string, error) {
 	return string(b), nil
 }
 
-func getPluginPair(pluginReference map[string]interface{}) (string, interface{}) {
+func getPluginPair(pluginReference map[string]any) (string, any) {
 	for k, v := range pluginReference {
 		return k, v
 	}
@@ -71,7 +72,7 @@ func canonicalisePluginJSON(pluginJSON string) (string, error) {
 	// plugin JSON is of the form [{"plugin-ref#version":{settings}},{"plugin-ref2#version":null}]
 	// https://golang.org/pkg/encoding/json/#Marshal provides consistent ordering of JSON
 	// unmarshal and remarshal to ensure this ordering is the same as extraction
-	var plugins []map[string]interface{}
+	var plugins []map[string]any
 	if err := json.Unmarshal([]byte(pluginJSON), &plugins); err != nil {
 		return "", err
 	}

@@ -29,7 +29,7 @@ func GetAwsSmSecret(secretId string) (string, error) {
 	}
 
 	client := secretsmanager.New(awsSession)
-	request := &secretsmanager.GetSecretValueInput {
+	request := &secretsmanager.GetSecretValueInput{
 		SecretId: aws.String(secretId),
 	}
 
