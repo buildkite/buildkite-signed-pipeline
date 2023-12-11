@@ -1,5 +1,8 @@
 # buildkite-signed-pipeline
 
+> [!IMPORTANT]
+> Signed pipelines has been built into the Buildkite agent itself making this utility unnecessary. For more information, see the documentation on [Signed pipelines](https://buildkite.com/docs/agent/v3/signed-pipelines).
+
 This is a tool that adds some extra security guarantees around Buildkite's jobs. Buildkite [security best practices](https://buildkite.com/docs/agent/v3/securing) suggest using `--no-command-eval` which will only allow local scripts in a checked out repository to be run, preventing arbitrary commands being injected by an intermediary.
 
 The downside of that approach is that it also comes with the recommendation of disabling plugins, or allow listing specifically what plugins and parameters are allowed. This tool is a collaboration between SEEK and Buildkite that attempts to bridge this gap and allow uploaded steps to be signed with a secret shared by all agents, so that plugins can run without any concerns of tampering by third-parties.
